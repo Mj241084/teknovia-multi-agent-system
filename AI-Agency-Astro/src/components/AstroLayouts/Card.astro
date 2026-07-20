@@ -1,0 +1,79 @@
+---
+// src/components/AstroLayouts/Card.astro
+import { formatViewsCount, getRelativePersianTime, getCategoryStyle, toPersianDigits } from '../../lib/api';
+
+interface Props {
+  article: any;
+  variant?: 'hero-primary' | 'hero-secondary' | 'default' | 'horizontal' | 'compact';
+}
+
+const { article, variant = 'default' } = Astro.props;
+const category = article.categories?.[0] || { id: 1, name: 'هوش مصنوعی', slug: 'ai', icon_url: null };
+const style = getCategoryStyle(category.id);
+
+const safeArticleUrl = `/post/${encodeURI(article.slug)}`;
+const safeCategoryUrl = `/category/${encodeURI(category.slug)}`;
+---
+
+{variant === 'horizontal' ? (
+  <article class="flex justify-between items-center gap-4 bg-card/45 border border-border/50 rounded-xl p-3 hover:border-emerald-500/50 hover:shadow-lg transition duration-300">
+    <div class="flex-1 flex flex-col justify-between h-24 text-right dir-rtl">
+      <h4 class="font-bold text-xs sm:text-sm line-clamp-1 hover:text-emerald-400 transition-colors">
+        <a href={safeArticleUrl}>{article.title}</a>
+      </h4>
+      <p class="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">{article.summary}</p>
+      <div class="flex items-center gap-3 text-[10px] text-muted-foreground">
+        <span>{getRelativePersianTime(article.publish_date)}</span>
+        <span>•</span>
+        <span>{toPersianDigits(article.reading_time)} دقیقه مطالعه</span>
+        <span>•</span>
+        <span>{formatViewsCount(article.views_count)} بازدید</span>
+      </div>
+    </div>
+    <div class="h-24 w-32 sm:w-40 rounded-lg overflow-hidden shrink-0">
+      <!-- تصویر کارت افقی به همراه بهینه‌سازی‌های عملکردی، عدم ایجاد CLS و لودینگ تنبل کلاینت -->
+      <img 
+        src={article.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
+        alt={article.title} 
+        class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
+        loading="lazy" 
+        decoding="async"
+      />
+    </div>
+  </article>
+) : (
+  <article class="bg-card/50 border border-border/50 rounded-2xl overflow-hidden hover:border-emerald-500/50 hover:shadow-lg transition duration-300 flex flex-col">
+    <div class="h-44 w-full overflow-hidden relative">
+      <!-- تصویر کارت عمومی به همراه اولویت لودینگ متناسب با عملکرد وب -->
+      <img 
+        src={article.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
+        alt={article.title} 
+        class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
+        loading="lazy" 
+        decoding="async"
+      />
+      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+      <span class="absolute top-3 right-3 px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-black/60 backdrop-blur text-white flex items-center gap-1.5 border border-white/10">
+        {category.icon_url ? (
+          <span 
+            class={`w-3.5 h-3.5 inline-block shrink-0 ${style.dot}`} 
+            style={`mask: url(${category.icon_url}) no-repeat center / contain; -webkit-mask: url(${category.icon_url}) no-repeat center / contain;`}
+          ></span>
+        ) : (
+          <span class={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`}></span>
+        )}
+        <a href={safeCategoryUrl}>{category.name}</a>
+      </span>
+    </div>
+    <div class="p-4 flex-1 flex flex-col justify-between text-right dir-rtl space-y-2">
+      <h3 class="font-bold text-sm sm:text-base line-clamp-2 leading-snug hover:text-emerald-400 transition-colors">
+        <a href={safeArticleUrl}>{article.title}</a>
+      </h3>
+      <p class="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{article.summary}</p>
+      <div class="border-t border-border/30 pt-3 flex items-center justify-between text-[10px] text-muted-foreground">
+        <span>{getRelativePersianTime(article.publish_date)}</span>
+        <span>{toPersianDigits(article.reading_time)} دقیقه مطالعه</span>
+      </div>
+    </div>
+  </article>
+)}

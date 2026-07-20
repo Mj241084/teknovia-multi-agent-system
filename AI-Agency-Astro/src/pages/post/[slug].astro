@@ -1,0 +1,153 @@
+---
+// src/pages/post/[slug].astro
+import Layout from '../../layouts/Layout.astro';
+import { fetchArticleDetail, getCategoryStyle } from '../../lib/api';
+import { ArticleHeaderInteractions, ArticleComments, SimilarArticles } from '../../components/SolidIslands';
+import { marked } from 'marked';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/');
+
+let article: any = null;
+try {
+  article = await fetchArticleDetail(slug);
+} catch (e) {
+  return Astro.redirect('/404');
+}
+
+const style = getCategoryStyle(article.id);
+
+// با استفاده از await، خروجی به طور قطعی به نوع داده رشته (string) تبدیل شده و خطای تایپ‌اسکریپت برطرف می‌گردد
+const rawHtml = await marked.parse(article.content || '');
+let htmlContent = rawHtml;
+if (htmlContent) {
+  // کادربندی اتوماتیک تگ‌های <table> در قالب تگ پیچشی اسکرول‌شونده ریسپانسیو
+  htmlContent = htmlContent.replace(/<table>/g, '<div class="table-wrapper"><table>').replace(/<\/table>/g, '</table></div>');
+}
+
+const categories = article.categories || [];
+const similarArticles = article.similar_articles || [];
+
+const newsArticleJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  "headline": article.title,
+  "description": article.summary,
+  "image": [
+    article.featured_media?.media_url || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80"
+  ],
+  "datePublished": article.publish_date || new Date().toISOString(),
+  "dateModified": article.publish_date || new Date().toISOString(),
+  "author": [{
+    "@type": "Organization",
+    "name": "تکنوویا",
+    "url": "https://teknovia.ir"
+  }],
+  "publisher": {
+    "@type": "Organization",
+    "name": "تکنوویا",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://teknovia.ir/favicon.svg"
+    }
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": article.canonical_url || `https://teknovia.ir/post/${article.slug}`
+  }
+};
+---
+
+<Layout title={`${article.title} | تکنوویا`} description={article.summary} canonicalUrl={article.canonical_url}>
+  
+  <script type="application/ld+json" set:html={JSON.stringify(newsArticleJsonLd)} />
+
+  <header class="border-b border-border/40 py-4 bg-card/10">
+    <div class="max-w-4xl mx-auto px-4 flex justify-between items-center text-xs text-muted-foreground">
+      <a href="/" class="text-emerald-400 hover:underline">← بازگشت </a>
+      <div class="flex items-center gap-1.5">
+        {categories.slice(0, 2).map((cat: any) => (
+          <span class="bg-muted px-2 py-0.5 rounded-full">{cat.name}</span>
+        ))}
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4 py-8 space-y-6 text-right dir-rtl">
+    
+    <!-- بهینه‌سازی بارگذاری تصویر شاخص LCP در صفحه جزئیات با اولویت بالا و غیرفعال کردن لود تنبل -->
+    <div class="rounded-2xl overflow-hidden h-64 sm:h-96 relative">
+      <img 
+        src={article.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80'} 
+        alt={article.title} 
+        class="w-full h-full object-cover" 
+        loading="eager" 
+        fetchpriority="high" 
+        decoding="async"
+      />
+    </div>
+
+    <div class="space-y-4">
+      <div class="flex flex-wrap items-center gap-3">
+        {categories.map((cat: any) => {
+          const catStyle = getCategoryStyle(cat.id);
+          return (
+            <a href={`/category/${encodeURI(cat.slug)}`} class="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/20">
+              {cat.icon_url ? (
+                <span 
+                  class={`w-4 h-4 inline-block shrink-0 ${catStyle.dot}`} 
+                  style={`mask: url(${cat.icon_url}) no-repeat center / contain; -webkit-mask: url(${cat.icon_url}) no-repeat center / contain;`}
+                ></span>
+              ) : (
+                <span class={`h-2 w-2 rounded-full shrink-0 ${catStyle.dot}`}></span>
+              )}
+              <span>{cat.name}</span>
+            </a>
+          );
+        })}
+      </div>
+      <h1 class="text-xl sm:text-3xl font-black leading-snug animate-none">{article.title}</h1>
+      <p class="text-sm text-muted-foreground leading-relaxed bg-muted/20 p-4 rounded-xl border border-border/50 font-sans">{article.summary}</p>
+    </div>
+
+    <!-- ماژول تعاملی متادیتای تعاملی و زمانی در بالای مقاله -->
+    <ArticleHeaderInteractions 
+      client:load 
+      articleId={article.id} 
+      likesCount={article.likes_count} 
+      slug={article.slug}
+      shortCode={article.short_code}
+      publishDate={article.publish_date}
+      viewsCount={article.views_count}
+      readingTime={article.reading_time}
+    />
+
+    <!-- بدنه مارک‌داون رندر شده در سرور مجهز به کلاس .prose با استایل‌های غنی و خوانایی بالا -->
+    <div class="prose max-w-none text-base font-sans border-b border-border/40 pb-6" set:html={htmlContent} />
+
+    {article.tags && article.tags.length > 0 && (
+      <div class="flex flex-wrap gap-1.5 pt-2 pb-6 border-b border-border/40 text-right dir-rtl items-center">
+        <span class="text-[10px] text-muted-foreground font-bold">برچسب‌ها:</span>
+        {article.tags.map((tag: string) => (
+          <a href={`/search?tag=${encodeURIComponent(tag)}`} class="text-[10px] text-muted-foreground hover:text-emerald-400 bg-muted/40 hover:bg-emerald-500/10 px-2.5 py-0.5 rounded border border-border/30 transition">
+            #{tag}
+          </a>
+        ))}
+      </div>
+    )}
+
+    <!-- لایه نظرات مجهز به سیستم لودینگ تنبل هوشمند کلاینت با دایرکتیو client:visible -->
+    <div class="pt-6 border-b border-border/40 pb-6">
+      <ArticleComments client:visible articleId={article.id} />
+    </div>
+
+    <!-- بخش مقالات مشابه ارتقا یافته به جزیره تعاملی با لودینگ کلاینت کاملاً معوق (client:visible) -->
+    {similarArticles && similarArticles.length > 0 && (
+      <div class="space-y-4 pt-4">
+        <h3 class="font-black text-sm text-foreground border-r-2 border-emerald-500 pr-2">اخبار و مقالات مشابه</h3>
+        <SimilarArticles client:visible articles={similarArticles} />
+      </div>
+    )}
+
+  </main>
+</Layout>

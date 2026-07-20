@@ -1,0 +1,30 @@
+# فایل‌های حاوی کلیدهای امنیتی
+.env
+.env.*
+secrets.json
+
+# فایل‌های موقت و محیط مجازی پایتون
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+/media/
+/staticfiles/
+
+# فایل‌های پایگاه داده محلی و پوشه برداری TurboVec
+db.sqlite3
+vector_storage/
+*.tvim
+
+# پوشه‌های موقت فرانت‌آسترو و پکیج‌های جاوااسکریپت
+node_modules/
+.astro/
+dist/
+.cache/
+npm-debug.log*
+
+# فایل‌های سیستم‌عامل
+.DS_Store
+Thumbs.db

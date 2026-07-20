@@ -1,0 +1,19 @@
+---
+// src/pages/s/[code].astro
+import { resolveShortCode } from '../../lib/api';
+
+const { code } = Astro.params;
+if (!code) return Astro.redirect('/');
+
+try {
+  const data = await resolveShortCode(code);
+  if (data && data.slug) {
+    // ریدایرکت با وضعیت 308 جهت انتقال 100% ارزش سئو به اسلاگ اصلی مقاله
+    return Astro.redirect(`/post/${encodeURI(data.slug)}`, 308);
+  }
+} catch {
+  // ریدایرکت امن در صورت بروز خطا یا نامعتبر بودن کد کوتاه
+}
+
+return Astro.redirect('/');
+---

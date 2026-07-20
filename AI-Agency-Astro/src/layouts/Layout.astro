@@ -1,0 +1,234 @@
+---
+// src/layouts/Layout.astro
+import '../styles/global.css';
+import { fetchAllCategories, fetchBreakingNews, type Category, getCategoryStyle } from '../lib/api';
+import CategoryNode from '../components/AstroLayouts/CategoryNode.astro';
+import { ThemeToggle, LiveTicker, SearchTrigger, MobileMenu, SearchOverlay, ToastContainer } from '../components/SolidIslands';
+import { CpuIcon, RssIcon, TelegramIcon, GithubIcon, YoutubeIcon, InstagramIcon, TwitterIcon } from '../components/Icons';
+
+interface Props {
+  title: string;
+  description?: string;
+  canonicalUrl?: string; // آدرس مرجع کانونیکال برای سئو
+  noindex?: boolean;     // غیرفعال کردن ایندکس برای موتورهای جستجو
+}
+
+const { title, description = "تکنوویا پورتال خبری مدرن هوش مصنوعی و تکنولوژی", canonicalUrl, noindex = false } = Astro.props;
+
+let categories: Category[] = [];
+let breakingNews: any[] = [];
+
+try {
+  // فراخوانی همزمان دو وب‌سرویس کاملاً تفکیک‌شده و ۵ دقیقه‌ای/۲۰ دقیقه‌ای کش‌شده در سطح سرور
+  const [catsData, breakingData] = await Promise.all([
+    fetchAllCategories(),
+    fetchBreakingNews()
+  ]);
+  
+  categories = catsData;
+  // محدود کردن تایتل اخبار فوری به ۶۵ کاراکتر جهت پیشگیری از به‌هم‌ریختگی تیکر بالا
+  breakingNews = (breakingData || []).map((item: any) => ({
+    ...item,
+    title: item.title.length > 65 ? item.title.slice(0, 65) + '...' : item.title
+  }));
+} catch (e) {
+  // مدیریت خطا در سیستم رندر آسترو
+}
+
+// ساختار داده‌های ساختاریافته کلی وب‌سایت به همراه باکس جستجوی مستقیم در صفحه گوگل
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "تکنوویا",
+  "alternateName": "Teknovia",
+  "url": "https://teknovia.ir",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://teknovia.ir/search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+};
+---
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    
+    {canonicalUrl && (
+      <link rel="canonical" href={canonicalUrl} />
+    )}
+
+    <!-- پیش‌بارگذاری هوشمند و تک‌رشته‌ای فونت متغیر جهت مهار مصرف پهنای باند و سرعت بارگذاری -->
+    <link rel="preload" href="/fonts/vazirmatn/Vazirmatn[wght].woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- مدیریت پویا و هوشمند ایندکس دسته‌بندی‌های غیرفعال و برچسب‌ها بر اساس استیت دیتابیس جنگو -->
+    {noindex ? (
+      <meta name="robots" content="noindex, follow" />
+    ) : (
+      <meta name="robots" content="index, follow" />
+    )}
+
+    <!-- تزریق بومی و استاندارد WebSite JSON-LD Schema در هدر تمام صفحات -->
+    <script type="application/ld+json" set:html={JSON.stringify(websiteJsonLd)} />
+
+    <script is:inline>
+      const theme = localStorage.getItem('theme') || 'dark';
+      document.documentElement.classList.toggle('light', theme === 'light');
+    </script>
+  </head>
+  <body class="flex min-h-screen flex-col bg-background text-foreground transition-colors duration-200">
+    
+    <header class="sticky top-0 z-40 w-full border-b border-border/40 bg-background/80 backdrop-blur-xl shrink-0 h-16 flex items-center">
+      <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          
+          <MobileMenu client:load>
+            {categories.map((cat) => (
+              <CategoryNode node={cat} />
+            ))}
+          </MobileMenu>
+
+          <a href="/" class="flex items-center gap-2.5">
+            <!-- قرارگیری مستقیم لوگوی T-V تکنوویا در هدر با مهار CLS و اولویت بارگذاری بالا -->
+            <div class="h-9 w-9 rounded-lg bg-[#141821] flex items-center justify-center border border-white/5 shadow-md p-1 shrink-0">
+              <img 
+                src="/teknovia_logo.webp" 
+                alt="تکنوویا" 
+                class="w-full h-full object-contain" 
+                loading="eager" 
+                fetchpriority="high" 
+                decoding="async" 
+              />
+            </div>            
+            <span class="text-lg font-black">تکنو<span class="text-emerald-400">ویا</span></span>
+          </a>
+
+          <nav class="hidden lg:flex items-center gap-5 mr-4">
+            {categories.slice(0, 5).map((cat) => {
+              const catStyle = getCategoryStyle(cat.id);
+              return (
+                <a href={`/category/${encodeURI(cat.slug)}`} class="text-[12.5px] font-medium text-foreground/75 hover:text-emerald-400 transition flex items-center gap-1.5">
+                  {cat.icon_url ? (
+                    <span 
+                      class={`w-3.5 h-3.5 inline-block shrink-0 ${catStyle.dot}`} 
+                      style={`mask: url(${cat.icon_url}) no-repeat center / contain; -webkit-mask: url(${cat.icon_url}) no-repeat center / contain;`}
+                    ></span>
+                  ) : (
+                    <span class={`w-1.5 h-1.5 rounded-full shrink-0 ${catStyle.dot}`}></span>
+                  )}
+                  <span>{cat.name}</span>
+                </a>
+              );
+            })}
+            <a href="/categories" class="text-[12.5px] font-bold text-emerald-400 hover:underline">همه دسته‌بندی‌ها</a>
+          </nav>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <SearchTrigger client:load />
+          <ThemeToggle client:load />
+        </div>
+      </div>
+    </header>
+
+    <LiveTicker client:load news={breakingNews} />
+
+    <slot />
+
+    <footer class="border-t border-border/40 bg-muted/10 py-12 text-right dir-rtl mt-auto">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-12">
+        
+        <div class="flex flex-col md:flex-row items-center justify-between border-b border-border/40 pb-6 gap-6">
+          <div>
+            <span class="font-black text-lg text-emerald-400">تکنوویا</span>
+            <span class="text-xs text-muted-foreground">— صدای آگاه‌کننده شما در دنیای تکنولوژی و هوش مصنوعی.</span>
+          </div>
+          <div class="flex gap-3">
+            <a href="#rss" aria-label="rss" class="h-9 w-9 border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-emerald-400 hover:border-emerald-500 transition duration-300">
+              <RssIcon class="h-4 w-4" />
+            </a>
+            <a href="#telegram" aria-label="telegram" class="h-9 w-9 border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-emerald-400 hover:border-emerald-500 transition duration-300">
+              <TelegramIcon class="h-4 w-4" />
+            </a>
+            <a href="#github" aria-label="github" class="h-9 w-9 border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-emerald-400 hover:border-emerald-500 transition duration-300">
+              <GithubIcon class="h-4 w-4" />
+            </a>
+            <a href="#youtube" aria-label="youtube" class="h-9 w-9 border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-emerald-400 hover:border-emerald-500 transition duration-300">
+              <YoutubeIcon class="h-4 w-4" />
+            </a>
+            <a href="#instagram" aria-label="instagram" class="h-9 w-9 border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-emerald-400 hover:border-emerald-500 transition duration-300">
+              <InstagramIcon class="h-4 w-4" />
+            </a>
+            <a href="#twitter" aria-label="twitter" class="h-9 w-9 border border-border/50 rounded-full flex items-center justify-center text-muted-foreground hover:text-emerald-400 hover:border-emerald-500 transition duration-300">
+              <TwitterIcon class="h-4 w-4" />
+            </a>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
+          <div class="lg:col-span-2 space-y-4">
+            <div class="flex items-center gap-2">
+              <div class="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                <CpuIcon class="h-4 w-4 text-white" />
+              </div>
+              <span class="font-black text-sm text-foreground">تکنوویا</span>
+            </div>
+            <p class="text-xs text-muted-foreground leading-relaxed">
+              تکنوویا، رسانه مستقل تخصصی اخبار تکنولوژی و هوش مصنوعی. ما با تیمی از خبرنگاران و تحلیل‌گران حرفه‌ای، تازه‌ترین رخدادهای دنیای فناوری را دقیق، بی‌طرف و در دسترس شما می‌گذاریم.
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <span class="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 rounded-full text-[10px] font-bold">از ۱۳۹۸</span>
+              <span class="px-3 py-1 bg-muted text-muted-foreground border border-border/50 rounded-full text-[10px] font-bold">۴۸,۰۰۰+ مشترک</span>
+              <span class="px-3 py-1 bg-muted text-muted-foreground border border-border/50 rounded-full text-[10px] font-bold">۱۲,۰۰۰+ مقاله</span>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <h4 class="font-bold text-xs text-foreground border-r-2 border-emerald-500 pr-2">دسته‌بندی‌ها</h4>
+            <ul class="space-y-2 text-xs text-muted-foreground">
+              {categories.map((cat) => (
+                <li><a href={`/category/${encodeURI(cat.slug)}`} class="hover:text-emerald-400 transition">{cat.name}</a></li>
+              ))}
+            </ul>
+          </div>
+
+          <div class="space-y-3">
+            <h4 class="font-bold text-xs text-foreground border-r-2 border-emerald-500 pr-2">درباره ما</h4>
+            <ul class="space-y-2 text-xs text-muted-foreground">
+              {['درباره تکنوویا', 'تماس با ما', 'تبلیغات', 'فرصت‌های شغلی', 'قوانین و مقررارت'].map((item) => (
+                <li><a href="#" class="hover:text-emerald-400 transition">{item}</a></li>
+              ))}
+            </ul>
+          </div>
+
+          <div class="space-y-3">
+            <h4 class="font-bold text-xs text-foreground border-r-2 border-emerald-500 pr-2">خدمات</h4>
+            <ul class="space-y-2 text-xs text-muted-foreground">
+              {['خبرنامه', 'پادکست تکنوویا', 'آموزش‌های ویژه', 'رویدادها', 'RSS'].map((item) => (
+                <li><a href="#" class="hover:text-emerald-400 transition">{item}</a></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div class="border-t border-border/40 pt-6 flex flex-col sm:flex-row justify-between items-center text-[11px] text-muted-foreground gap-4">
+          <span>© ۱۴۰۵ تکنوویا. تمامی حقوق محفوظ است.</span>
+          <div class="flex items-center gap-2">
+            <span>حریم خصوصی | کوکی‌ها | ساخته‌شده با ❤️</span>
+          </div>
+        </div>
+
+      </div>
+    </footer>
+
+    <SearchOverlay client:load />
+    <ToastContainer client:load />
+
+  </body>
+</html>

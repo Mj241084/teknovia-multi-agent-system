@@ -1,0 +1,56 @@
+---
+// src/components/AstroLayouts/CategoryNode.astro
+import { getCategoryStyle } from '../../lib/api';
+
+interface Props {
+  node: any;
+}
+
+const { node } = Astro.props;
+const hasChildren = node.children && node.children.length > 0;
+const style = getCategoryStyle(node.id);
+---
+
+<div class="py-1">
+  {hasChildren ? (
+    <details class="group">
+      <summary class="flex items-center justify-between cursor-pointer list-none text-sm py-2 px-3 rounded-lg hover:bg-muted/45 transition">
+        <a href={`/category/${node.slug}`} class="flex items-center gap-2 text-foreground font-semibold hover:text-emerald-400 transition">
+          {node.icon_url ? (
+            <span 
+              class={`w-4 h-4 inline-block shrink-0 ${style.dot}`} 
+              style={`mask: url(${node.icon_url}) no-repeat center / contain; -webkit-mask: url(${node.icon_url}) no-repeat center / contain;`}
+            ></span>
+          ) : node.logo_url ? (
+            <img src={node.logo_url} alt={node.name} class="w-4 h-4 rounded-full object-cover dark:brightness-90" />
+          ) : (
+            <span class={`w-2 h-2 rounded-full shrink-0 ${style.dot}`}></span>
+          )}
+          {node.name}
+        </a>
+        <svg class="h-4 w-4 text-muted-foreground transition-transform duration-200 group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </summary>
+      <div class="pr-4 border-r border-border/40 mr-4 mt-1 space-y-1">
+        {node.children.map((child: any) => (
+          <Astro.self node={child} />
+        ))}
+      </div>
+    </details>
+  ) : (
+    <a href={`/category/${node.slug}`} class="flex items-center gap-2 text-sm py-2 px-3 rounded-lg hover:bg-muted/45 transition">
+      {node.icon_url ? (
+        <span 
+          class={`w-3.5 h-3.5 inline-block shrink-0 ${style.dot}`} 
+          style={`mask: url(${node.icon_url}) no-repeat center / contain; -webkit-mask: url(${node.icon_url}) no-repeat center / contain;`}
+        ></span>
+      ) : node.logo_url ? (
+        <img src={node.logo_url} alt={node.name} class="w-3.5 h-3.5 rounded-full object-cover dark:brightness-90" />
+      ) : (
+        <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0"></span>
+      )}
+      <span class="text-foreground/80 hover:text-emerald-400 transition">{node.name}</span>
+    </a>
+  )}
+</div>

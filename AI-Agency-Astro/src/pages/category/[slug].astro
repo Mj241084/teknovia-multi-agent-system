@@ -1,0 +1,77 @@
+---
+// src/pages/category/[slug].astro
+import Layout from '../../layouts/Layout.astro';
+import { fetchCategoryArticles, getCategoryStyle } from '../../lib/api';
+import Card from '../../components/AstroLayouts/Card.astro';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/');
+
+let data: any = null;
+try {
+  data = await fetchCategoryArticles(slug);
+} catch (e) {
+  return Astro.redirect('/404');
+}
+
+const { category_info, child_categories, articles } = data;
+---
+
+<!-- تزریق هوشمند عنوان اختصاصی سئو و توضیحات غنی شده دسته‌بندی از دیتابیس به همراه کنترل فیزیکی متای noindex گوگل -->
+<Layout 
+  title={category_info.meta_title || `${category_info.name} | تکنوویا`} 
+  description={category_info.meta_description || category_info.description || `اخبار و مقالات دسته‌بندی ${category_info.name}`}
+  noindex={!category_info.indexable}
+>
+  <main class="w-full max-w-full lg:max-w-7xl overflow-x-hidden lg:overflow-x-visible mx-auto px-4 sm:px-6 py-12 text-right dir-rtl space-y-8">
+    
+    <!-- هدر دسته‌بندی با لوگوی فیزیکی بومی به صورت کاملاً مینیمال بالا سمت راست -->
+    <div class="flex items-center gap-4 border-b border-border/40 pb-6 text-right">
+      {category_info.logo_url && (
+        <img src={category_info.logo_url} alt={category_info.name} class="w-16 h-16 rounded-2xl object-cover border border-border/60" />
+      )}
+      <div>
+        <h1 class="text-2xl font-black text-emerald-400">{category_info.name}</h1>
+        <p class="text-xs text-muted-foreground mt-1">{category_info.description}</p>
+      </div>
+    </div>
+
+    <!-- زیردسته‌ها مستقیماً در زیر دسته اصلی بدون متن ثابت هدر و با دایره‌های کوچک‌تر در موبایل و بوردرهای داینامیک -->
+    {child_categories && child_categories.length > 0 && (
+      <div class="flex overflow-x-auto gap-4 pb-4 scrollbar-none snap-x justify-start items-center">
+        {child_categories.map((child: any) => {
+          const childStyle = getCategoryStyle(child.id);
+          return (
+            <a href={`/category/${encodeURI(child.slug)}`} class="flex flex-col items-center gap-1.5 snap-center group shrink-0">
+              <div class={`w-12 h-12 sm:w-14 sm:h-14 rounded-full p-[2px] bg-gradient-to-tr ${childStyle.dot} to-cyan-500 shadow-md transition-transform group-hover:scale-105`}>
+                <div class="w-full h-full rounded-full bg-card overflow-hidden border-2 border-card flex items-center justify-center">
+                  {child.logo_url ? (
+                    <img 
+                      src={child.logo_url} 
+                      alt="" 
+                      class="w-full h-full object-cover dark:brightness-90"
+                    />
+                  ) : (
+                    <span class={`text-[10px] sm:text-xs font-bold ${childStyle.text}`}>
+                      {child.name.slice(0, 2)}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span class="text-[10px] sm:text-[11px] font-semibold text-foreground/90 group-hover:text-emerald-400 transition">
+                {child.name}
+              </span>
+            </a>
+          );
+        })}
+      </div>
+    )}
+
+    <!-- لیست مقالات با کارت‌های بهینه -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
+      {articles.results.map((item: any) => (
+        <Card article={item} variant="default" />
+      ))}
+    </div>
+  </main>
+</Layout>

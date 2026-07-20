@@ -1,0 +1,150 @@
+---
+// src/pages/index.astro
+import Layout from '../layouts/Layout.astro';
+import { fetchHomepageData, toPersianDigits, formatViewsCount } from '../lib/api';
+import Card from '../components/AstroLayouts/Card.astro';
+import { HeroSliderSection, NewsletterSection } from '../components/SolidIslands';
+import { FlameIcon } from '../components/Icons';
+
+const data = await fetchHomepageData();
+---
+
+<Layout title="تکنوویا— اخبار هوش مصنوعی و فناوری">
+  
+  <main class="w-full max-w-full lg:max-w-7xl overflow-x-hidden lg:overflow-x-visible mx-auto px-4 sm:px-6 py-6 flex-1 space-y-12">
+    
+    <!-- ۴. هیرو سکشن وب‌سایت با اسلایدر کلاینتی ۳ ستونه و پرشدن تعاملی فضای خالی کناری -->
+    <section class="flex text-right dir-rtl w-full">
+      <HeroSliderSection client:load articles={data.latest_news} />
+    </section>
+
+    <!-- ۵. نوار آمار پالس هوش مصنوعی -->
+    <section class="border border-border/50 bg-card/40 rounded-2xl p-4 flex flex-wrap gap-4 items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="text-xs font-black">پالس هوش مصنوعی:</span>
+      </div>
+      <div class="flex flex-wrap gap-6 text-xs text-muted-foreground">
+        <span>● استعلام هوشمند مدل: <strong class="text-foreground">{toPersianDigits('۴.۲')}M / ثانیه</strong></span>
+        <span>● سوپرکامپیوتر فعال: <strong class="text-foreground">{toPersianDigits('۱,۲۴۸')} واحد</strong></span>
+        <span>● پروژه‌های عمومی هوش مصنوعی: <strong class="text-foreground">{toPersianDigits('۳۲,۹۱۰')} مورد</strong></span>
+      </div>
+    </section>
+
+    <!-- ۶. چیدمان دوستونی خبرها -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2 space-y-6">
+        <div class="flex items-center justify-between border-b border-border/40 pb-2">
+          <h2 class="text-base font-black">آخرین اخبار فناوری</h2>
+          <a href="/search?sort_by=latest" class="text-xs text-emerald-400 hover:underline">مشاهده همه</a>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {data.latest_news.map((item: any) => (
+            <Card article={item} variant="default" />
+          ))}
+        </div>
+      </div>
+
+      <aside class="lg:col-span-1 space-y-6 lg:sticky lg:top-24 h-fit text-right dir-rtl">
+        <!-- بلوک مطالب پربازدید -->
+        <div class="border border-border/60 bg-card/30 p-5 rounded-2xl space-y-4">
+          <div class="flex items-center gap-2 border-b border-border/40 pb-2">
+            <FlameIcon class="h-4.5 w-4.5 text-rose-500" />
+            <h3 class="text-xs font-black">پربازدیدترین‌های هفته</h3>
+          </div>
+          <div class="space-y-4">
+            {data.most_viewed.map((item: any, i: number) => (
+              <div class="flex gap-3 items-start">
+                <span class={`h-6 w-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${
+                  i === 0 ? 'bg-rose-600 text-white' : 'bg-muted text-muted-foreground'
+                }`}>
+                  {toPersianDigits(i + 1)}
+                </span>
+                <div>
+                  <h4 class="text-xs font-bold line-clamp-2 hover:text-emerald-400 transition-colors">
+                    <a href={`/news/${item.slug}`}>{item.title}</a>
+                  </h4>
+                  <span class="text-[10px] text-muted-foreground">{formatViewsCount(item.views_count)} بازدید</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <!-- برچسب‌های داغ با هدایت هوشمند به پارامتر تخصصی tag -->
+        <div class="border border-border/60 bg-card/30 p-5 rounded-2xl space-y-4">
+          <div class="flex items-center gap-2 border-b border-border/40 pb-2">
+            <span class="text-emerald-500">#</span>
+            <h3 class="text-xs font-black">برچسب‌های داغ</h3>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {data.popular_tags.map((tag: any) => (
+              <a href={`/search?tag=${encodeURIComponent(tag.slug)}`} class="px-3 py-1 bg-muted/60 hover:bg-emerald-500/10 hover:text-emerald-400 border border-border/50 hover:border-emerald-500/30 rounded-full text-xs transition">
+                #{tag.name}
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <!-- کارت گرادیانی طراح -->
+        <!-- <div class="rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white space-y-3 shadow-lg shadow-emerald-500/10">
+          <span class="text-xs font-bold">📈 رشد بازدیدکنندگان</span>
+          <p class="text-2xl font-black">{toPersianDigits('+۳۸%')}</p>
+          <p class="text-[11px] opacity-80 leading-relaxed">رشد چشمگیر و میلیونی ترافیک پورتال تکنوویاطی ماه گذشته در حوزه مقالات تخصصی کوانتوم و هوش مصنوعی مولد.</p>
+        </div> -->
+      </aside>
+    </div>
+
+    <!-- ۷. بخش‌های داینامیک دسته‌بندی‌های محبوب و مقالات بر اساس تصویر ارسالی -->
+    {data.popular_categories_articles.map((popCat: any) => (
+      <section class="py-8 border-t border-border/40 text-right dir-rtl">
+        <div class="flex items-center justify-between border-b border-border/50 pb-3 mb-6">
+          <div class="flex items-center gap-3">
+            <span class="h-6 w-1.5 rounded-full bg-emerald-500"></span>
+            <h2 class="text-lg font-black">{popCat.category_name}</h2>
+          </div>
+          <a href={`/category/${popCat.category_slug}`} class="text-xs text-emerald-400 hover:underline">آرشیو کامل ←</a>
+        </div>
+
+        {/* دسکتاپ چیدمان RTL هوشمند */}
+        <div class="hidden md:grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 flex flex-col gap-4">
+            {popCat.articles.slice(1, 3).map((item: any) => (
+              <Card article={item} variant="horizontal" />
+            ))}
+          </div>
+          <div class="lg:col-span-1">
+            {popCat.articles[0] && (
+              <div class="relative h-56 rounded-2xl overflow-hidden group">
+                <img src={popCat.articles[0].featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} alt={popCat.articles[0].title} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent"></div>
+                <div class="absolute bottom-0 right-0 left-0 p-4 space-y-2 z-20">
+                  <h3 class="text-sm font-bold text-white line-clamp-2 hover:text-emerald-400 transition-colors">
+                    <a href={`/news/${popCat.articles[0].slug}`}>{popCat.articles[0].title}</a>
+                  </h3>
+                  <div class="flex justify-between items-center text-[10px] text-white/70 font-sans">
+                    <span>{toPersianDigits(popCat.articles[0].reading_time)} دقیقه مطالعه</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* موبایل اسلایدر نیتیو بومی بدون JS */}
+        <div class="md:hidden flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4">
+          {popCat.articles.map((item: any) => (
+            <div class="w-72 shrink-0 snap-center">
+              <Card article={item} variant="default" />
+            </div>
+          ))}
+        </div>
+      </section>
+    ))}
+
+    <!-- ۸. خبرنامه مدرن کلاینت -->
+    <NewsletterSection client:load />
+
+  </main>
+
+</Layout>

@@ -1,0 +1,38 @@
+---
+// src/components/AstroLayouts/CategorySec.astro
+import Card from './Card.astro';
+
+interface Props {
+  categorySlug: string;
+  categoryName: string;
+  articles: any[];
+}
+
+const { categorySlug, categoryName, articles } = Astro.props;
+---
+
+<section id={`cat-${categorySlug}`} class="py-8 scroll-mt-20">
+  <div class="flex items-center justify-between border-b border-border/50 pb-3 mb-6">
+    <div class="flex items-center gap-3">
+      <span class="h-6 w-1.5 rounded-full bg-emerald-500"></span>
+      <h2 class="text-lg font-black">{categoryName}</h2>
+    </div>
+    <a href="#" class="text-xs text-emerald-400 hover:underline">مشاهده همه ←</a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    {/* کارت اصلی با فرمت بزرگ */}
+    {articles[0] && (
+      <div class="md:col-span-1">
+        <Card article={articles[0]} variant="default" />
+      </div>
+    )}
+    
+    {/* لیست کارت‌های افقی و بهینه */}
+    <div class="md:col-span-2 flex flex-col gap-4">
+      {articles.slice(1, 4).map((item) => (
+        <Card article={item} variant="horizontal" />
+      ))}
+    </div>
+  </div>
+</section>

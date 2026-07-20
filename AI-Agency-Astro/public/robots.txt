@@ -1,0 +1,10 @@
+# robots.txt for teknica news portal
+User-agent: *
+Allow: /
+
+# مسدود کردن دسترسی ربات‌ها به پروکسی‌ها و هدایت‌های کوتاه جهت پیشگیری از خطای آدرس تکراری
+Disallow: /api/
+Disallow: /s/
+
+# آدرس نقشه داینامیک و بلادرنگ سایت برای موتورهای جستجو
+Sitemap: https://teknovia.ir/sitemap.xml

@@ -1,0 +1,26 @@
+---
+// src/pages/search.astro
+import Layout from '../layouts/Layout.astro';
+import { AdvancedSearchPanel } from '../components/SolidIslands';
+import { fetchAllCategories } from '../lib/api';
+
+const q = Astro.url.searchParams.get('q') || '';
+const category = Astro.url.searchParams.get('category') || '';
+const tag = Astro.url.searchParams.get('tag') || '';
+
+// دریافت لیست کامل دسته‌بندی‌های فعال سیستم جهت استفاده در فیلتر
+let categories: any[] = [];
+try {
+  categories = await fetchAllCategories();
+} catch (e) {
+  // مدیریت خطا در صورت قطع ارتباط با بک‌اند
+}
+---
+
+<!-- غیرفعال کردن صددرصدی ایندکس تگ‌ها، کلمات جستجو شده و فیلترهای موقت با تزریق همیشگی پارامتر noindex جهت بهینه‌سازی بودجه خزش گوگل -->
+<Layout title="جستجوی پیشرفته در مقالات | تکنوویا" noindex={true}>
+  <main class="max-w-4xl mx-auto px-4 py-12 space-y-6">
+    <!-- پاس دادن آرایه کامل دسته‌ها به پنل جستجو جهت فیلتر جامع و ارسال پارامتر تگ به صورت مجزا -->
+    <AdvancedSearchPanel client:load initialQuery={q} initialCategory={category} initialTag={tag} categories={categories} />
+  </main>
+</Layout>
