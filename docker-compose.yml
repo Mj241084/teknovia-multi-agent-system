@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  # دیتابیس اصلی پروژه
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: teknovia_postgres
+    environment:
+      POSTGRES_DB: ${PG_DB_NAME:-teknovia_db}
+      POSTGRES_USER: ${PG_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_DB_PASSWORD:-postgres_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - teknovia_network
+
+  # سرویس کش و صف‌های سلری
+  redis_cache:
+    image: redis:7-alpine
+    container_name: teknovia_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - teknovia_network
+
+  # سرویس برداری دیتابیس TurboVec (اصلاح آدرس پوشه به FastApi)
+  vector_fastapi:
+    build:
+      context: "./AI-Agency(FastApi)"
+    container_name: teknovia_vector
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./AI-Agency(FastApi)/vector_storage:/app/vector_storage
+    networks:
+      - teknovia_network
+
+  # وب‌سرویس اصلی جنگو
+  django_backend:
+    build:
+      context: ./AI-Agency
+    container_name: teknovia_django
+    command: python manage.py runserver 0.0.0.0:8001
+    volumes:
+      - ./AI-Agency:/app
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis_cache:6379/0
+      - DATABASE_URL=postgres://postgres:postgres_pass@postgres_db:5432/teknovia_db
+    depends_on:
+      - postgres_db
+      - redis_cache
+      - vector_fastapi
+    networks:
+      - teknovia_network
+
+  # ورکر پردازش تسک‌های پس‌زمینه سلری
+  celery_worker:
+    build:
+      context: ./AI-Agency
+    container_name: teknovia_celery
+    command: celery -A core worker --loglevel=info
+    volumes:
+      - ./AI-Agency:/app
+    depends_on:
+      - redis_cache
+      - django_backend
+    networks:
+      - teknovia_network
+
+  # فرانت‌اند آسترو ۷
+  astro_frontend:
+    build:
+      context: ./AI-Agency-Astro
+    container_name: teknovia_astro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - django_backend
+    networks:
+      - teknovia_network
+
+volumes:
+  postgres_data:
+
+networks:
+  teknovia_network:
+    driver: bridge
