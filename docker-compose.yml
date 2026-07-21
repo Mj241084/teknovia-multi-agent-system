@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   # دیتابیس اصلی پروژه (پستگرس ۱۸ پایدار)
   postgres_db:
@@ -35,8 +37,8 @@ services:
     networks:
       - teknovia_network
 
-  # وب‌سرویس اصلی جنگو (تزریق خودکار تمام متغیرهای فایل .env)
-  django_backend:
+  # وب‌سرویس اصلی جنگو (تغییر نام به django-backend جهت پاس کردن استانداردهای RFC)
+  django-backend:
     build:
       context: ./AI-Agency
     container_name: teknovia_django
@@ -57,7 +59,7 @@ services:
     networks:
       - teknovia_network
 
-  # ورکر پردازش تسک‌های پس‌زمینه سلری (تزریق خودکار تمام متغیرهای فایل .env)
+  # ورکر پردازش تسک‌های پس‌زمینه سلری
   celery_worker:
     build:
       context: ./AI-Agency
@@ -72,11 +74,11 @@ services:
       - REDIS_URL=redis://redis_cache:6379/0
     depends_on:
       - redis_cache
-      - django_backend
+      - django-backend
     networks:
       - teknovia_network
 
-  # سرویس مانیتورینگ و شنود پیام‌های تلگرام (تزریق خودکار تمام متغیرهای فایل .env)
+  # سرویس مانیتورینگ و شنود پیام‌های تلگرام (تلتون)
   telethon_listener:
     build:
       context: ./AI-Agency
@@ -91,11 +93,11 @@ services:
       - REDIS_URL=redis://redis_cache:6379/0
     depends_on:
       - redis_cache
-      - django_backend
+      - django-backend
     networks:
       - teknovia_network
 
-  # فرانت‌اند آسترو ۷ (تزریق خودکار تمام متغیرهای فایل .env)
+  # فرانت‌اند آسترو ۷
   astro_frontend:
     build:
       context: ./AI-Agency-Astro
@@ -105,10 +107,10 @@ services:
     env_file:
       - .env
     environment:
-      - BACKEND_URL=http://django_backend:8001
+      - BACKEND_URL=http://django-backend:8001
       - REDIS_URL=redis://redis_cache:6379
     depends_on:
-      - django_backend
+      - django-backend
     networks:
       - teknovia_network
 
