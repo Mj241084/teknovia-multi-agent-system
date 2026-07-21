@@ -16,7 +16,8 @@ embeddings_model = GoogleGenerativeAIEmbeddings(
     output_dimensionality=768,
 )
 
-FASTAPI_BASE_URL = "http://127.0.0.1:8000"
+# تغییر آدرس از لوکال‌هاست به سرویس داکر برای برقراری ارتباط کانتینرها
+FASTAPI_BASE_URL = "http://vector_fastapi:8000"
 
 
 def generate_text_embedding(text: str) -> list:
