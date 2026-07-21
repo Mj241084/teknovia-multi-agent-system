@@ -1,16 +1,14 @@
-version: '3.8'
-
 services:
-  # دیتابیس اصلی پروژه
+  # دیتابیس اصلی پروژه (ارتقا یافته به نسخه ۱۸ پایدار و هماهنگ با لوکال شما)
   postgres_db:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     container_name: teknovia_postgres
     environment:
       POSTGRES_DB: ${PG_DB_NAME:-teknovia_db}
       POSTGRES_USER: ${PG_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${PG_DB_PASSWORD:-postgres_pass}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     ports:
       - "5432:5432"
     networks:
@@ -25,19 +23,19 @@ services:
     networks:
       - teknovia_network
 
-  # سرویس برداری دیتابیس TurboVec (اصلاح آدرس پوشه به FastApi)
+  # سرویس برداری دیتابیس TurboVec (منطبق با نام فیزیکی پوشه FastAPI بر روی سیستم شما)
   vector_fastapi:
     build:
-      context: "./AI-Agency(FastApi)"
+      context: "./AI-Agency(FastAPI)"
     container_name: teknovia_vector
     ports:
       - "8000:8000"
     volumes:
-      - ./AI-Agency(FastApi)/vector_storage:/app/vector_storage
+      - ./AI-Agency(FastAPI)/vector_storage:/app/vector_storage
     networks:
       - teknovia_network
 
-  # وب‌سرویس اصلی جنگو
+  # وب‌سرویس اصلی جنگو (تزریق استاندارد متغیرهای دیتابیس و کش داکر)
   django_backend:
     build:
       context: ./AI-Agency
@@ -48,8 +46,11 @@ services:
     ports:
       - "8001:8001"
     environment:
+      - DATABASE_HOST=postgres_db
       - REDIS_URL=redis://redis_cache:6379/0
-      - DATABASE_URL=postgres://postgres:postgres_pass@postgres_db:5432/teknovia_db
+      - PG_DB_NAME=${PG_DB_NAME:-teknovia_db}
+      - PG_DB_USER=${PG_DB_USER:-postgres}
+      - PG_DB_PASSWORD=${PG_DB_PASSWORD:-postgres_pass}
     depends_on:
       - postgres_db
       - redis_cache
@@ -57,7 +58,7 @@ services:
     networks:
       - teknovia_network
 
-  # ورکر پردازش تسک‌های پس‌زمینه سلری
+  # ورکر پردازش تسک‌های پس‌زمینه سلری (تزریق استاندارد متغیرهای دیتابیس و کش داکر)
   celery_worker:
     build:
       context: ./AI-Agency
@@ -65,19 +66,28 @@ services:
     command: celery -A core worker --loglevel=info
     volumes:
       - ./AI-Agency:/app
+    environment:
+      - DATABASE_HOST=postgres_db
+      - REDIS_URL=redis://redis_cache:6379/0
+      - PG_DB_NAME=${PG_DB_NAME:-teknovia_db}
+      - PG_DB_USER=${PG_DB_USER:-postgres}
+      - PG_DB_PASSWORD=${PG_DB_PASSWORD:-postgres_pass}
     depends_on:
       - redis_cache
       - django_backend
     networks:
       - teknovia_network
 
-  # فرانت‌اند آسترو ۷
+  # فرانت‌اند آسترو ۷ (تزریق آدرس وب‌سرور جنگو و ردیس داکر)
   astro_frontend:
     build:
       context: ./AI-Agency-Astro
     container_name: teknovia_astro
     ports:
       - "3000:3000"
+    environment:
+      - BACKEND_URL=http://django_backend:8001
+      - REDIS_URL=redis://redis_cache:6379
     depends_on:
       - django_backend
     networks:

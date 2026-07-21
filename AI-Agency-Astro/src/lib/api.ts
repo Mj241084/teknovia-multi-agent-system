@@ -1,8 +1,8 @@
 // src/lib/api.ts
 import Redis from 'ioredis';
 
-export const BASE_URL = 'http://127.0.0.1:8001';
-// export const BASE_URL = 'https://teknovia.ir';
+export const BASE_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8001';
+
 
 // پالت رنگ‌های ثابت هشت‌گانه مناسب برای ترکیب ترتیبی دسته‌بندی‌ها
 export const DETERMINISTIC_PALETTE = [
@@ -201,7 +201,7 @@ export async function submitComment(articleId: number, data: { name: string; ema
 
 let redis: Redis | null = null;
 try {
-  redis = new Redis('redis://127.0.0.1:6379', {
+redis = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
     maxRetriesPerRequest: 1,
     connectTimeout: 500,
   });

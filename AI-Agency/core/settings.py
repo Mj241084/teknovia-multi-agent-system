@@ -87,18 +87,18 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("PG_DB_NAME"),
-        'USER': os.getenv("PG_DB_USER"),
-        'PASSWORD': os.getenv("PG_DB_PASSWORD"),
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+        'NAME': os.getenv("PG_DB_NAME", "teknovia_db"),
+        'USER': os.getenv("PG_DB_USER", "postgres"),
+        'PASSWORD': os.getenv("PG_DB_PASSWORD", "postgres_pass"),
+        'HOST': os.getenv("DATABASE_HOST", "127.0.0.1"), 
+        'PORT': os.getenv("DATABASE_PORT", "5432"),
     }
 }
 
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379',
+        'LOCATION': os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"), 
     }
 }
 
