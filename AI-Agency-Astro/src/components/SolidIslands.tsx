@@ -185,12 +185,12 @@ export function HeroSliderSection(props: { articles: any[] }) {
         </For>
 
         <div class="absolute inset-y-0 left-4 flex items-center z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={(e) => { e.stopPropagation(); handlePrev(); }} class="h-8 w-8 rounded-full bg-black/60 hover:bg-emerald-500 text-white flex items-center justify-center transition">
+          <button onClick={(e) => { e.stopPropagation(); handlePrev(); }} aria-label="اسلاید قبلی" class="h-8 w-8 rounded-full bg-black/60 hover:bg-emerald-500 text-white flex items-center justify-center transition">
             <ChevronLeft class="h-4 w-4" />
           </button>
         </div>
         <div class="absolute inset-y-0 right-4 flex items-center z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={(e) => { e.stopPropagation(); handleNext(); }} class="h-8 w-8 rounded-full bg-black/60 hover:bg-emerald-500 text-white flex items-center justify-center transition">
+          <button onClick={(e) => { e.stopPropagation(); handleNext(); }} aria-label="اسلاید بعدی" class="h-8 w-8 rounded-full bg-black/60 hover:bg-emerald-500 text-white flex items-center justify-center transition">
             <ChevronRight class="h-4 w-4" />
           </button>
         </div>
@@ -228,12 +228,12 @@ export function HeroSliderSection(props: { articles: any[] }) {
   );
 }
 
-// ۸. منوی همبرگری موبایل با رفع باگ هیدراتاسیون با نگهداشت فرزندان در قالب پورتال کلاینت به جای حذف شرطی
+// ۸. منوی همبرگری موبایل مجهز به نام دسترسی‌پذیری آریا جهت تایید در تست گوگل
 export function MobileMenu(props: { children: any }) {
   const [isOpen, setIsOpen] = createSignal(false);
   return (
     <>
-      <button onClick={() => setIsOpen(true)} class="lg:hidden h-9 w-9 flex items-center justify-center bg-muted/60 rounded-full border border-border/40">
+      <button onClick={() => setIsOpen(true)} aria-label="منوی ناوبری موبایل" class="lg:hidden h-9 w-9 flex items-center justify-center bg-muted/60 rounded-full border border-border/40">
         <svg class="h-5 w-5 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
       </button>
       <Portal>
@@ -290,7 +290,7 @@ export function NewsletterSection() {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center text-right dir-rtl">
         <div class="space-y-3">
           <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[11px] px-3 py-1 font-bold w-fit flex items-center gap-1.5">
-            <SparklesIcon class="h-3.5 w-3.5 text-emerald-400 animate-pulse" />
+            <SparklesIcon class="h-3.5 w-3.5 text-emerald-400" />
             <span>خبرنامه هفتگی تکنوویا</span>
           </span>
           <h3 class="text-xl sm:text-2xl font-black">مهم‌ترین اخبار هوش مصنوعی و فناوری را <span class="text-emerald-400">هر شنبه صبح</span> در ایمیلتان بگیرید</h3>
@@ -309,7 +309,7 @@ export function NewsletterSection() {
                   placeholder="ایمیل شما" 
                   value={email()}
                   onInput={(e) => setEmail(e.currentTarget.value)}
-                  class="w-full bg-transparent text-sm focus:outline-none placeholder-muted-foreground text-right animate-none"
+                  class="w-full bg-transparent text-sm focus:outline-none placeholder-muted-foreground text-right"
                   required
                 />
               </div>
@@ -326,7 +326,7 @@ export function NewsletterSection() {
   );
 }
 
-// ۱۰. پنل پیشرفته جستجوی داینامیک با رندر تمام دسته بندی های سیستم و پشتیبانی از برچسب‌ها
+// ۱۰. پنل پیشرفته جستجوی داینامیک
 export function AdvancedSearchPanel(props: { initialQuery?: string; initialCategory?: string; initialTag?: string; categories: any[] }) {
   const [query, setQuery] = createSignal(props.initialQuery || '');
   const [category, setCategory] = createSignal(props.initialCategory || '');
@@ -503,7 +503,7 @@ export function ArticleHeaderInteractions(props: {
         body: JSON.stringify({ articleId: props.articleId })
       });
     } catch (e) {
-      // مهار سایلنت خطاها طبق سند (هیچ پیامی برای ریت لیمیت بازدید نشان داده نمی‌شود)
+      // مهار سایلنت خطاها
     }
 
     const observer = new IntersectionObserver(([entry]) => {
@@ -529,9 +529,9 @@ export function ArticleHeaderInteractions(props: {
       if (res.ok) {
         const data = await res.json();
         setLikes(data.likes_count);
-        showToast('دمت گرم ', 'heart'); // نمایش پیام دمت گرم به همراه تپش آیکون قلب بومی
+        showToast('دمت گرم ', 'heart'); 
       } else if (res.status === 429) {
-        showToast('قبلا لایک کردی', 'error'); // مدیریت پیغام ریت لیمیت لایک
+        showToast('قبلا لایک کردی', 'error'); 
       }
     } catch {
       showToast('خطا در ثبت پسند دیدگاه', 'error');
@@ -548,8 +548,6 @@ export function ArticleHeaderInteractions(props: {
       
       const shortUrl = `${window.location.origin}/s/${props.shortCode}`;
       await navigator.clipboard.writeText(shortUrl);
-      
-      // پیام همیشه بدون تغییر باقی می‌ماند (حتی در زمان ریت لیمیت به هرحال کپی می‌شود)
       showToast('لینک کپی شد', 'success');
     } catch {
       showToast('خطا در کپی لینک', 'error');
@@ -617,7 +615,7 @@ export function ArticleHeaderInteractions(props: {
   );
 }
 
-// ۱۲. جزیره تعاملی مقالات مشابه جهت تعویق رندری کامل DOM و هیدراتاسیون تا زمان اسکرول
+// ۱۲. جزیره تعاملی مقالات مشابه
 export function SimilarArticles(props: { articles: any[] }) {
   return (
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -687,7 +685,7 @@ export function CommentNode(props: {
   );
 }
 
-// ۱۴. ماژول نظرات به صورت کاملاً مجزا جهت نمایش در انتهای مقاله
+// ۱۴. ماژول نظرات
 export function ArticleComments(props: { articleId: number }) {
   const [comments, setComments] = createSignal<any[]>([]);
   const [name, setName] = createSignal('');
@@ -739,7 +737,7 @@ export function ArticleComments(props: { articleId: number }) {
         setEmail('');
         setParent(null);
       } else if (res.status === 429) {
-        showToast('به سقف کامنت برای این مقاله رسیده', 'error'); // پیام بازگشتی ویژه ریت‌لیمیت نظرات
+        showToast('به سقف کامنت برای این مقاله رسیده', 'error'); 
       } else {
         showToast('خطا در ارسال دیدگاه', 'error');
       }
@@ -886,7 +884,7 @@ export function ArticleComments(props: { articleId: number }) {
   );
 }
 
-// ۱۵. ماژول توست کلاینتی مجهز به پشتیبانی از نمایش زنده و تپنده قلب بومی به جای ایموجی لایک
+// ۱۵. ماژول توست کلاینتی
 export function ToastContainer() {
   return (
     <Show when={toast()}>
