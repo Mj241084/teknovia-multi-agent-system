@@ -147,7 +147,7 @@ def seo_analyzer_node(state: SeoWorkflowState) -> Dict[str, Any]:
 
     try:
         llm = ChatGoogleGenerativeAI(
-            model="gemini-3.1-flash-lite",
+            model="gemini-3.5-flash-lite",
             api_key=SecretStr(api_key),
             thinking_level="high"
         ).with_structured_output(SeoAnalysisOutput)

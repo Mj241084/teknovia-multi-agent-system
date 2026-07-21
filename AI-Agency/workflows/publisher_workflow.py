@@ -34,7 +34,7 @@ def get_article_absolute_url(article: Optional[Content]) -> str:
         return ""
 
     frontend_url = getattr(settings, 'FRONTEND_URL', 'https://teknovia.ir').rstrip('/')
-    return f"{frontend_url}/post/{article.slug}/"
+    return f"{frontend_url}/s/{article.short_code}"
 
 
 def replace_article_url_placeholder(markdown_text: str, article: Optional[Content]) -> str:
@@ -330,9 +330,9 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
                 hashtags = []
                 for t in tags_list:
                     # فراخوانی مستقیم اسلاگ بدون تغییر خط تیره‌ها (مانند #کارت-گرافیک)
-                    slug_cleaned = t.slug.strip() if t.slug else ""
+                    slug_cleaned = t.name.strip() if t.slug else ""
                     if slug_cleaned:
-                        slug_cleaned = slug_cleaned.replace('-', '_')
+                        slug_cleaned = slug_cleaned.replace(' ', '_')
                         hashtags.append(f"#{slug_cleaned}")
 
                 # الصاق هشتگ‌ها با فاصله در خط پایانی پیام

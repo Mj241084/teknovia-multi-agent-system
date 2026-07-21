@@ -483,8 +483,10 @@ def writer_node(state: WriterWorkflowState) -> Dict[str, Any]:
 
     # لیست ترتیبی مدل‌ها برای اجرای مکانیزم فال‌بک حرفه‌ای
     models_to_try = [
+        "gemini-3.6-flash",
         "gemini-3.5-flash",
         "gemini-3-flash",
+        "gemini-3.5-flash-lite",
         "gemini-3.1-flash-lite"
     ]
 
