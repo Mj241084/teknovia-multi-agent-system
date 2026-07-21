@@ -1,7 +1,7 @@
 // src/lib/api.ts
 import Redis from 'ioredis';
 
-export const BASE_URL = 'http://django_backend:8001';
+export const BASE_URL = 'http://django-backend:8001';
 
 
 // پالت رنگ‌های ثابت هشت‌گانه مناسب برای ترکیب ترتیبی دسته‌بندی‌ها
