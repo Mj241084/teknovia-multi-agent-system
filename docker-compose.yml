@@ -1,5 +1,7 @@
+version: '3.8'
+
 services:
-  # دیتابیس اصلی پروژه (نسخه ۱۸ پایدار و هماهنگ با لوکال شما)
+  # دیتابیس اصلی پروژه (پستگرس ۱۸ پایدار)
   postgres_db:
     image: postgres:18-alpine
     container_name: teknovia_postgres
@@ -58,7 +60,7 @@ services:
     networks:
       - teknovia_network
 
-  # ورکر پردازش تسک‌های پس‌زمینه سلری (تزریق استاندارد متغیرهای دیتابیس و کش داکر)
+  # ورکر پردازش تسک‌های پس‌زمینه سلری
   celery_worker:
     build:
       context: ./AI-Agency
@@ -72,6 +74,30 @@ services:
       - PG_DB_NAME=${PG_DB_NAME:-teknovia_db}
       - PG_DB_USER=${PG_DB_USER:-postgres}
       - PG_DB_PASSWORD=${PG_DB_PASSWORD:-postgres_pass}
+    depends_on:
+      - redis_cache
+      - django_backend
+    networks:
+      - teknovia_network
+
+  # سرویس مانیتورینگ و شنود پیام‌های تلگرام (تلتون) - فعال‌سازی خودکار و ۲۴ ساعته تلتون در بک‌گراند داکر
+  telethon_listener:
+    build:
+      context: ./AI-Agency
+    container_name: teknovia_telethon
+    command: python manage.py run_telethon
+    volumes:
+      - ./AI-Agency:/app
+    environment:
+      - DATABASE_HOST=postgres_db
+      - REDIS_URL=redis://redis_cache:6379/0
+      - PG_DB_NAME=${PG_DB_NAME:-teknovia_db}
+      - PG_DB_USER=${PG_DB_USER:-postgres}
+      - PG_DB_PASSWORD=${PG_DB_PASSWORD:-postgres_pass}
+      - TELEGRAM_APP_ID=${TELEGRAM_APP_ID}
+      - TELEGRAM_APP_HASH=${TELEGRAM_APP_HASH}
+      - TELEGRAM_SESSION=${TELEGRAM_SESSION}
+      - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID}
     depends_on:
       - redis_cache
       - django_backend
