@@ -1,3 +1,4 @@
+# /var/www/teknovia/AI-Agency/workflows/image_workflow.py
 import os
 import io
 import base64
@@ -10,7 +11,6 @@ import concurrent.futures
 import time
 from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field, SecretStr
-from PIL import Image, ImageDraw
 
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -20,6 +20,7 @@ from langchain_deepseek import ChatDeepSeek
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.utils import timezone
+from django.db import transaction
 from accounts.models import ApiContainer
 from contents.models import Content, MediaContainer, PostsContainer
 from workflows.logging_services import add_log_event
@@ -178,7 +179,7 @@ def get_high_quality_production_fallback(state: ImageWorkflowState, prompt: str)
     """
     جایگزین نهایی بسیار باکیفیت برای پروداکشن (منسوخ کردن فال‌بک Pillow):
     ۱. تلاش برای تولید عکس زنده و بسیار زیبا به کمک API رایگان و بدون محدودیت Pollinations.ai
-    ۲. در صورت خطای شبکه، دانلود یک تصویر استاتیک آبستره تکنولوژی از Unsplash جهت تضمین سلامت بصری
+    ۲. در صورت خطای شبکه، دانلود یک تصویر استاتیک آبستره فناوری از Unsplash جهت تضمین سلامت بصری
     """
     logger.info("اجرای مکانیسم فال‌بک پیشرفته پروداکشن برای تولید تصویر...")
     add_log_event(state.message_id, "IMAGE_FALLBACK_TRIGGERED", 
@@ -611,7 +612,7 @@ def image_generator_node(state: ImageWorkflowState) -> Dict[str, Any]:
 
 
 def image_saver_node(state: ImageWorkflowState) -> Dict[str, Any]:
-    """ذخیره‌سازی تصویر و جایگزینی پویای تگ‌های مارک‌داون با Regex پایتون و حفظ Alt Text اختصاصی"""
+    """ذخیره‌سازی تصویر و جایگزینی پویای تگ‌های مارک‌داون با Regex پایتون و پیوند اتمیک و تراکنش‌امنه به دیتابیس"""
     logger.info("اجرای نود نهایی و ذخیره‌ساز هوشمند تصاویر...")
 
     if not state.selected_image_bytes:
@@ -638,105 +639,121 @@ def image_saver_node(state: ImageWorkflowState) -> Dict[str, Any]:
     else:
         final_alt_text = state.generated_alt_text or f"طرح گرافیکی اختصاصی تک‌نیکا - {state.local_id}"
 
-    # ۱. ثبت رسانه در MediaContainer
+    # ۱. ثبت رسانه در MediaContainer به صورت تراکنشی ایمن
     try:
-        media_container = MediaContainer.objects.create(
-            media_type=MediaContainer.MediaTypes.IMAGE,
-            source_url=state.selected_image_url or "https://source.web",
-            is_used=True,
-            is_analyzed=True,
-            alt_text=final_alt_text[:100],
-            description=state.prompt
-        )
+        with transaction.atomic():
+            media_container = MediaContainer.objects.create(
+                media_type=MediaContainer.MediaTypes.IMAGE,
+                source_url=state.selected_image_url or "https://source.web",
+                is_used=True,
+                is_analyzed=True,
+                alt_text=final_alt_text[:100],
+                description=state.prompt
+            )
 
-        django_file = ContentFile(state.selected_image_bytes, name=f"ai_img_{state.tracking_id}.jpg")
-        media_container.media.save(f"ai_img_{state.tracking_id}.jpg", django_file, save=True)
+            django_file = ContentFile(state.selected_image_bytes, name=f"ai_img_{state.tracking_id}.jpg")
+            media_container.media.save(f"ai_img_{state.tracking_id}.jpg", django_file, save=True)
 
-        logger.info(f"MediaContainer جدید ایجاد شد. ID={media_container.id}")
-        add_log_event(state.message_id, "IMAGE_SAVER_SAVED_DB",
-                      f"رسانه با شناسه جدید {media_container.id} در پایگاه‌داده با موفقیت ثبت شد.")
-
+            logger.info(f"MediaContainer جدید ایجاد شد. ID={media_container.id}")
+            add_log_event(state.message_id, "IMAGE_SAVER_SAVED_DB",
+                          f"رسانه با شناسه جدید {media_container.id} در پایگاه‌داده با موفقیت ثبت شد.")
     except Exception as e:
         logger.error(f"Error saving image to MediaContainer: {e}", exc_info=True)
         add_log_event(state.message_id, "IMAGE_SAVER_DB_ERROR",
                       f"خطا در زمان درج فیزیکی فایل تصویر در دیتابیس: {str(e)}")
         return {}
 
-    # ۲. پیوند تصویر به مقالات وب‌سایت مرتبط (Contents) و جایگزینی با Regex پایتون
-    for article in matching_articles:
-        sugs = list(article.suggestions or [])
-        updated = False
+    # ۲. پیوند تصویر به مقالات وب‌سایت مرتبط (Contents) و جایگزینی با Regex پایتون به صورت اتمیک
+    try:
+        with transaction.atomic():
+            for article in matching_articles:
+                # واکشی مجدد رکورد برای قفل موقت دیتابیس جهت ممانعت از تداخل همزمان
+                article_locked = Content.objects.select_for_update().get(id=article.id)
+                sugs = list(article_locked.suggestions or [])
+                updated = False
 
-        for s in sugs:
-            if s.get("tracking_id") == state.tracking_id:
-                s["status"] = "completed"
-                s["media_id"] = media_container.id
-                updated = True
+                for s in sugs:
+                    if s.get("tracking_id") == state.tracking_id:
+                        s["status"] = "completed"
+                        s["media_id"] = media_container.id
+                        updated = True
 
-                placements = s.get("placements", [])
-                if "article_featured" in placements:
-                    article.featured_media = media_container
-                    logger.info(f"تصویر شاخص مقاله {article.id} تنظیم شد.")
+                        placements = s.get("placements", [])
+                        if "article_featured" in placements:
+                            article_locked.featured_media = media_container
+                            logger.info(f"تصویر شاخص مقاله {article_locked.id} تنظیم شد.")
 
-                if "article_inline" in placements:
-                    # جایگزینی تگ suggestion_id با تگ استاندارد دیتابیس با حفظ Alt Text اختصاصی در مارک‌داون
-                    replacement_tag = f"![{final_alt_text}](media_id:{media_container.id})"
-                    article.content = re.sub(placeholder_pattern, replacement_tag, article.content)
-                    logger.info(f"تگ تصویر پیشنهادی در مقاله {article.id} با موفقیت به تگ رسانه استاندارد تبدیل شد.")
+                        if "article_inline" in placements:
+                            replacement_tag = f"![{final_alt_text}](media_id:{media_container.id})"
+                            article_locked.content = re.sub(placeholder_pattern, replacement_tag, article_locked.content)
+                            logger.info(f"تگ تصویر پیشنهادی در مقاله {article_locked.id} با موفقیت به تگ رسانه استاندارد تبدیل شد.")
 
-        if updated:
-            article.suggestions = sugs
-            all_completed = all(s.get("status") == "completed" for s in sugs)
-            if all_completed:
-                article.suggestions_status = Content.Suggestions.FINISHED
-                logger.info(f"تمام تصاویر پیشنهادی مقاله {article.id} تکمیل شدند.")
+                if updated:
+                    article_locked.suggestions = sugs
+                    all_completed = all(s.get("status") == "completed" for s in sugs)
+                    if all_completed:
+                        article_locked.suggestions_status = Content.Suggestions.FINISHED
+                        logger.info(f"تمام تصاویر پیشنهادی مقاله {article_locked.id} تکمیل شدند.")
 
-            article.save()
-            articles_updated += 1
+                    article_locked.save()
+                    articles_updated += 1
+    except Exception as e:
+        logger.error(f"Error linking image to matching contents: {e}", exc_info=True)
 
-    # ۳. پیوند تصویر به پست‌های تلگرام مرتبط (PostsContainer)
-    posts_updated = 0
-    matching_posts = PostsContainer.objects.filter(suggestions__contains=[{"tracking_id": state.tracking_id}])
+    # ۳. پیوند تصویر به پست‌های تلگرام مرتبط (PostsContainer) و ذخیره‌سازی اتمیک
+    posts_to_trigger = []
+    try:
+        with transaction.atomic():
+            matching_posts = PostsContainer.objects.filter(suggestions__contains=[{"tracking_id": state.tracking_id}])
+            for post in matching_posts:
+                post_locked = PostsContainer.objects.select_for_update().get(id=post.id)
+                sugs = list(post_locked.suggestions or [])
+                updated = False
 
-    for post in matching_posts:
-        sugs = list(post.suggestions or [])
-        updated = False
+                for s in sugs:
+                    if s.get("tracking_id") == state.tracking_id:
+                        s["status"] = "completed"
+                        s["media_id"] = media_container.id
+                        updated = True
 
-        for s in sugs:
-            if s.get("tracking_id") == state.tracking_id:
-                s["status"] = "completed"
-                s["media_id"] = media_container.id
-                updated = True
+                        placements = s.get("placements", [])
+                        if "telegram_post" in placements:
+                            post_locked.medias.add(media_container)
+                            logger.info(f"رسانه {media_container.id} به پست تلگرام {post_locked.id} پیوست شد.")
 
-                placements = s.get("placements", [])
-                if "telegram_post" in placements:
-                    post.medias.add(media_container)
-                    logger.info(f"رسانه {media_container.id} به پست تلگرام {post.id} پیوست شد.")
+                if updated:
+                    post_locked.suggestions = sugs
+                    all_completed = all(s.get("status") == "completed" for s in sugs)
+                    if all_completed:
+                        post_locked.suggestions_status = PostsContainer.Suggestions.FINISHED
+                        logger.info(f"تمام تصاویر پیشنهادی پست تلگرام {post_locked.id} با موفقیت آماده شد.")
+                        
+                        if post_locked.state == PostsContainer.State.DRAFT:
+                            posts_to_trigger.append(post_locked.id)
 
-        if updated:
-            post.suggestions = sugs
-            all_completed = all(s.get("status") == "completed" for s in sugs)
-            if all_completed:
-                post.suggestions_status = PostsContainer.Suggestions.FINISHED
-                logger.info(f"تمام تصاویر پیشنهادی پست تلگرام {post.id} با موفقیت آماده شد.")
+                    post_locked.save()
+    except Exception as e:
+        logger.error(f"Error linking image to matching posts: {e}", exc_info=True)
 
-                if post.state == PostsContainer.State.DRAFT:
-                    logger.info(f"تمام تصاویر پست تلگرام {post.id} آماده شدند. فراخوانی تسک متمرکز انتشار...")
-                    try:
-                        from celery import current_app
-                        current_app.send_task("workflows.tasks.process_publisher_workflow", args=[post.id])
-                        add_log_event(state.message_id, "IMAGE_POST_TRIGGER_PUBLISHER",
-                                      f"پست تلگرامی {post.id} جهت انتشار به تسک متمرکز فرستاده شد.")
-                    except Exception as celery_e:
-                        logger.error(f"Error triggering publisher task: {celery_e}")
+    # ۴. اجرای کاملاً ایمن تسک متمرکز انتشار در خارج از بلاک تراکنش (به محض Commit دیتابیس روی دیسک)
+    if posts_to_trigger:
+        for pid in posts_to_trigger:
+            def trigger_publisher(post_id=pid):
+                try:
+                    from celery import current_app
+                    current_app.send_task("workflows.tasks.process_publisher_workflow", args=[post_id])
+                    add_log_event(state.message_id, "IMAGE_POST_TRIGGER_PUBLISHER",
+                                  f"پست تلگرامی {post_id} جهت انتشار به تسک متمرکز فرستاده شد.")
+                except Exception as celery_e:
+                    logger.error(f"Error triggering publisher task: {celery_e}")
 
-            post.save()
-            posts_updated += 1
+            # استفاده از قلاب بومی جنگو برای رهاسازی تسک پس از اتمام فیزیکی کوئری
+            transaction.on_commit(trigger_publisher)
 
     add_log_event(
         state.message_id,
         "IMAGE_SAVER_COMPLETE",
-        f"پایان موفق ورک‌فلو تصویر. اعمال روی {articles_updated} مقاله و {posts_updated} پست تلگرامی."
+        f"پایان موفق ورک‌فلو تصویر. اعمال روی {articles_updated} مقاله و {len(posts_to_trigger)} پست تلگرامی."
     )
 
     return {"media_id": media_container.id}

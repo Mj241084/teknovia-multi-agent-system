@@ -1,10 +1,10 @@
-# workflows/publisher_workflow.py
-
+# /var/www/teknovia/AI-Agency/workflows/publisher_workflow.py
 import os
 import io
 import re
 import html
 import logging
+import asyncio
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # ────────────────────────────────────────────────────────────────
-# توابع کمکی تبدیل مارک‌داون به HTML تلگرام و آدرس کانونیکال و کوتاه
+# توابع کمکی تبدیل مارک‌داون به HTML تلگرام و آدرس کانونیکال
 # ────────────────────────────────────────────────────────────────
 
 def get_article_absolute_url(article: Optional[Content]) -> str:
@@ -37,26 +37,15 @@ def get_article_absolute_url(article: Optional[Content]) -> str:
     return f"{frontend_url}/post/{article.slug}/"
 
 
-def get_article_short_url(article: Optional[Content]) -> str:
-    """
-    تولید لینک کوتاه مقاله با استفاده از فیلد short_code جهت ریدایرکت ۳۰۸ در آسترو
-    """
-    if not article or not article.short_code:
-        return ""
-
-    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://teknovia.ir').rstrip('/')
-    return f"{frontend_url}/s/{article.short_code}"
-
-
 def replace_article_url_placeholder(markdown_text: str, article: Optional[Content]) -> str:
     """
-    جای‌گذاری لینک کوتاه مقاله اصلی به جای تگ نگهدارنده <!-- MAIN_ARTICLE_URL -->
+    جای‌گذاری لینک واقعی مقاله اصلی به جای تگ نگهدارنده <!-- MAIN_ARTICLE_URL -->
     به همراه پوشش هایپرلینک پشت متن
     """
     if not markdown_text:
         return ""
 
-    article_url = get_article_short_url(article)
+    article_url = get_article_absolute_url(article)
     placeholder = "<!-- MAIN_ARTICLE_URL -->"
     hyperlink_text = f"[جزئیات بیشتر...]({article_url})"
 
@@ -106,22 +95,22 @@ def markdown_to_telegram_html(text: str) -> str:
 
 
 # ────────────────────────────────────────────────────────────────
-# توابع ناهمگام Telethon
+# توابع ناهمگام Telethon مجهز به ساختار محافظتی Timeout و لایه مستقل نخ
 # ────────────────────────────────────────────────────────────────
 
 async def send_to_telegram_async(channel_id: str, text: str, media_containers: List[MediaContainer]) -> bool:
     """
-    ارسال ناهمگام پیام و رسانه‌ها به کانال تلگرام با فرمت‌بندی HTML استاندارد
+    ارسال ناهمگام پیام و رسانه‌ها به کانال تلگرام با فرمت‌بندی HTML استاندارد و مجهز به حد زمانی برای عدم فریز
     """
-    app_id = getattr(settings, 'TELEGRAM_APP_ID', None)
-    app_hash = getattr(settings, 'TELEGRAM_APP_HASH', None)
-    session_str = getattr(settings, 'TELEGRAM_SESSION', None)
+    async def _send():
+        app_id = getattr(settings, 'TELEGRAM_APP_ID', None)
+        app_hash = getattr(settings, 'TELEGRAM_APP_HASH', None)
+        session_str = getattr(settings, 'TELEGRAM_SESSION', None)
 
-    if not app_id or not app_hash or not session_str:
-        logger.error("تنظیمات ارتباطی تلگرام در تنظیمات پروژه تکمیل نشده است.")
-        return False
+        if not app_id or not app_hash or not session_str:
+            logger.error("تنظیمات ارتباطی تلگرام در تنظیمات پروژه تکمیل نشده است.")
+            return False
 
-    try:
         client = TelegramClient(StringSession(session_str), int(app_id), app_hash)
         await client.connect()
 
@@ -148,39 +137,56 @@ async def send_to_telegram_async(channel_id: str, text: str, media_containers: L
                 except Exception as ex:
                     logger.error(f"خطا در آماده‌سازی باینری رسانه {container.id}: {ex}")
 
+        try:
+            entity = int(channel_id)
+        except ValueError:
+            entity = channel_id
+
+        if files_to_send:
+            await client.send_file(entity, files_to_send, caption=text, parse_mode='html')
+        else:
+            await client.send_message(entity, text, parse_mode='html')
+
+        for f in opened_files:
             try:
-                entity = int(channel_id)
-            except ValueError:
-                entity = channel_id
+                f.close()
+            except Exception:
+                pass
 
-            if files_to_send:
-                await client.send_file(entity, files_to_send, caption=text, parse_mode='html')
-            else:
-                await client.send_message(entity, text, parse_mode='html')
+        await client.disconnect()
+        return True
 
-            for f in opened_files:
-                try:
-                    f.close()
-                except Exception:
-                    pass
-
-            await client.disconnect()
-            return True
-
-        except Exception as e:
-            logger.error(f"خطا در اجرای فرآیند ارسال Telethon به کانال: {e}", exc_info=True)
-            return False
+    try:
+        # محافظت از فریز شدن کانتینر با ایجاد سقف ۶۰ ثانیه‌ای برای ارسال
+        return await asyncio.wait_for(_send(), timeout=60.0)
+    except asyncio.TimeoutError:
+        logger.error("ارسال پیام به تلگرام به دلیل سپری شدن مهلت ۶۰ ثانیه‌ای لغو شد.")
+        return False
+    except Exception as e:
+        logger.error(f"خطا در اجرای فرآیند ارسال Telethon به کانال: {e}", exc_info=True)
+        return False
 
 
 def send_to_telegram_sync(channel_id: str, text: str, media_containers: List[MediaContainer]) -> bool:
     """
-    واسط همگام برای فراخوانی تابع ناهمگام Telethon
+    واسط همگام برای فراخوانی تابع ناهمگام تله‌تون با ساخت حلقه رویداد تازه جهت عدم تداخل با سلری
     """
     try:
-        return async_to_sync(send_to_telegram_async)(channel_id, text, media_containers)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(send_to_telegram_async(channel_id, text, media_containers))
     except Exception as e:
-        logger.error(f"خطا در ارتباط همگام با تله‌تون: {e}", exc_info=True)
-        return False
+        logger.error(f"خطا در ارتباط حلقه رویداد مستقل با تله‌تون: {e}", exc_info=True)
+        try:
+            return async_to_sync(send_to_telegram_async)(channel_id, text, media_containers)
+        except Exception as e2:
+            logger.error(f"روش کمکی دوم async_to_sync نیز با خطا مواجه شد: {e2}", exc_info=True)
+            return False
+    finally:
+        try:
+            loop.close()
+        except Exception:
+            pass
 
 
 # ────────────────────────────────────────────────────────────────
@@ -273,7 +279,7 @@ def article_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
 
 def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
     """
-    نود انتشار تلگرام: جای‌گذاری هوشمند لینک کوتاه مقاله،
+    نود انتشار تلگرام: جای‌گذاری هوشمند لینک مقاله بر پایه اولویت‌های سه‌گانه،
     تبدیل خودکار برچسب‌ها به هشتگ و ارسال نهایی با Telethon.
     """
     logger.info(f"اجرای نود انتشار فیزیکی پست تلگرام #{state.post_id}...")
@@ -299,9 +305,9 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
 
         content_processed = raw_markdown_content
 
-        # ۱. پیاده‌سازی منطق سه‌گانه و هوشمند مدیریت لینک‌ها با استفاده از لینک کوتاه جهت لود بهینه‌تر
+        # ۱. پیاده‌سازی منطق سه‌گانه و هوشمند مدیریت لینک‌ها به صورت هایپرلینک پشت متن
         if article:
-            article_url = get_article_short_url(article)
+            article_url = get_article_absolute_url(article)
             hyperlink_text = f"[جزئیات بیشتر...]({article_url})"
 
             if placeholder in content_processed:
@@ -317,7 +323,7 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
         # ۲. اضافه کردن آیدی کانال تلگرام به انتهای پیام
         content_processed += f"\n\n🆔 {channel_username}"
 
-        # ۳. تبدیل داینامیک برچسب‌های مقاله به هشتگ پس از درج آیدی کانال تلگرام به صورت شیک با خط جدید خالی
+        # ۳. تبدیل داینامیک برچسب‌های مقاله به هشتگ بر پایه اسلاگ بومی (Slug) بدون تغییر کاراکترهای خط تیره
         if article:
             tags_list = list(article.tags.all())
             if tags_list:
@@ -329,9 +335,9 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
                         slug_cleaned = slug_cleaned.replace('-', '_')
                         hashtags.append(f"#{slug_cleaned}")
 
-                # الصاق هشتگ‌ها با فاصله پس از آیدی کانال به صورت تمیز
+                # الصاق هشتگ‌ها با فاصله در خط پایانی پیام
                 if hashtags:
-                    content_processed += "\n\n" + " ".join(hashtags)
+                    content_processed += "\n" + " ".join(hashtags)
 
         # ۴. تبدیل مارک‌داون پردازش‌شده به فرمت HTML اختصاصی تلگرام
         formatted_telegram_html = markdown_to_telegram_html(content_processed)
