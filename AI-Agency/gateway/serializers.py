@@ -12,39 +12,31 @@ from workflows.vector_services import get_similar_article_objects
 
 def replace_media_ids_with_urls(markdown_content: str, request=None) -> str:
     """
-    شناسایی الگوهای اختصاصی دیتابیس نظیر ![alt](media_id:ID) و تبدیل آنها
-    به لینک‌های مستقیم و مطلق ابری روی آروان‌کلود برای رندر استاندارد در فرانت‌اند.
-    این متد کوئری‌ها را تجمیع می‌کند تا از وقوع خطای کارایی N+1 جلوگیری شود.
+    تبدیل شناسه مدیا به آدرس‌های نسبی استاندارد وب جهت بارگذاری بی‌نقص کلاینت.
     """
     if not markdown_content:
         return ""
 
-    # ۱. استخراج تمام الگوهای رسانه‌ای موجود در مارک‌داون مقاله
     pattern = r"!\[(.*?)\]\(media_id:(\d+)\)"
     matches = re.findall(pattern, markdown_content)
     if not matches:
         return markdown_content
 
-    # ۲. استخراج لیست شناسه‌ها برای اجرای یک کوئری دسته‌جمعی بهینه
     media_ids = [int(m[1]) for m in matches]
 
-    # ۳. واکشی رسانه‌ها و ساخت نگاشت شناسه به آدرس فایل ابری
     media_map = {}
     containers = MediaContainer.objects.filter(id__in=media_ids)
     for container in containers:
         if container.media:
-            # ساخت آدرس مطلق اینترنتی در صورت حضور درخواست (Request)
-            url = request.build_absolute_uri(container.media.url) if request else container.media.url
-            media_map[container.id] = url
+            # تغییر به آدرس نسبی (بدون پیشوند دامنه داکر) جهت حل مشکل بارگذاری کلاینت
+            media_map[container.id] = container.media.url
 
-    # ۴. جایگزینی الگوها با آدرس‌های استاندارد و معتبر وب
     def replacer(match):
         alt_text = match.group(1)
         media_id = int(match.group(2))
         actual_url = media_map.get(media_id)
         if actual_url:
             return f"![{alt_text}]({actual_url})"
-        # در صورت نبود فایل یا حذف شدن فیزیکی، آدرس تصویر خالی گذاشته می‌شود
         return f"![{alt_text}]()"
 
     return re.sub(pattern, replacer, markdown_content)
@@ -55,7 +47,7 @@ def replace_media_ids_with_urls(markdown_content: str, request=None) -> str:
 # ────────────────────────────────────────────────────────────────
 
 class MediaContainerSerializer(serializers.ModelSerializer):
-    """سریالایزر کامل اطلاعات چندرسانه‌ای به همراه جزییات ابعاد و آدرس فایل"""
+    """سریالایزر کامل اطلاعات چندرسانه‌ای بر پایه آدرس‌های نسبی"""
     media_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -73,15 +65,13 @@ class MediaContainerSerializer(serializers.ModelSerializer):
 
     def get_media_url(self, obj):
         if obj.media:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.media.url)
+            # بازگرداندن آدرس نسبی به جای آدرس مطلق داکر
             return obj.media.url
         return None
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    """سریالایزر اطلاعات اولیه دسته‌بندی‌ها به همراه لوگو، آیکون و فیلدهای کامل سئو"""
+    """سریالایزر اطلاعات اولیه دسته‌بندی‌ها به همراه لوگو، آیکون و فیلدهای کامل سئو بر پایه آدرس‌های نسبی"""
     logo_url = serializers.SerializerMethodField()
     icon_url = serializers.SerializerMethodField()
 
@@ -103,23 +93,19 @@ class CategorySerializer(serializers.ModelSerializer):
 
     def get_logo_url(self, obj):
         if obj.logo:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.logo.url)
+            # بازگرداندن آدرس نسبی استاندارد برای لوگوی دسته‌بندی
             return obj.logo.url
         return None
 
     def get_icon_url(self, obj):
         if obj.icon:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.icon.url)
+            # بازگرداندن آدرس نسبی استاندارد برای آیکون دسته‌بندی
             return obj.icon.url
         return None
 
 
 class CategoryTreeSerializer(serializers.ModelSerializer):
-    """سریالایزر درختی و بازگشتی دسته‌بندی‌ها با زیرمجموعه‌های نامحدود به همراه فایل‌های سئو"""
+    """سریالایزر درختی و بازگشتی دسته‌بندی‌ها با زیرمجموعه‌های نامحدود به همراه فایل‌های سئو بر پایه آدرس‌های نسبی"""
     children = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
     icon_url = serializers.SerializerMethodField()
@@ -148,20 +134,15 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
 
     def get_logo_url(self, obj):
         if obj.logo:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.logo.url)
+            # بازگرداندن آدرس نسبی استاندارد برای لوگوی درخت دسته‌بندی
             return obj.logo.url
         return None
 
     def get_icon_url(self, obj):
         if obj.icon:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.icon.url)
+            # بازگرداندن آدرس نسبی استاندارد برای آیکون درخت دسته‌بندی
             return obj.icon.url
         return None
-
 
 class ContentTagSerializer(serializers.ModelSerializer):
     """سریالایزر برچسب سفارشی به همراه آمار بازدید تگ"""
@@ -199,9 +180,8 @@ class ContentListSerializer(serializers.ModelSerializer):
         tags_queryset = obj.tags.all()
         return [tag.name for tag in tags_queryset]
 
-
 class SimilarArticleSerializer(serializers.ModelSerializer):
-    """سریالایزر سبک مقالات مشابه به همراه اطلاعات تصویر شاخص"""
+    """سریالایزر سبک مقالات مشابه بر پایه آدرس‌های نسبی تصویر شاخص"""
     featured_media_url = serializers.SerializerMethodField()
 
     class Meta:
@@ -210,12 +190,9 @@ class SimilarArticleSerializer(serializers.ModelSerializer):
 
     def get_featured_media_url(self, obj):
         if obj.featured_media and obj.featured_media.media:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.featured_media.media.url)
+            # بازگرداندن آدرس نسبی به جای آدرس مطلق داکر
             return obj.featured_media.media.url
         return None
-
 
 class ContentDetailSerializer(serializers.ModelSerializer):
     """سریالایزر تفصیلی مقاله به همراه تبدیل هوشمند محتوا به مارک‌داون استاندارد وب"""
