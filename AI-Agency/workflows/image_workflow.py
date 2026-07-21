@@ -5,6 +5,7 @@ import logging
 import requests
 import mimetypes
 import re
+import urllib.parse
 import concurrent.futures
 import time
 from typing import List, Dict, Any, Optional, Literal
@@ -167,6 +168,68 @@ def compress_image_smart(img_bytes: bytes, max_dim: int = 1200, quality: int = 8
     except Exception as e:
         logger.warning(f"Error in smart image compressor: {e}")
         return img_bytes
+
+
+# ────────────────────────────────────────────────────────────────
+# متد کمکی فوق‌العاده منعطف و باکیفیت به عنوان فال‌بک پیشرفته پروداکشن
+# ────────────────────────────────────────────────────────────────
+
+def get_high_quality_production_fallback(state: ImageWorkflowState, prompt: str) -> Dict[str, Any]:
+    """
+    جایگزین نهایی بسیار باکیفیت برای پروداکشن (منسوخ کردن فال‌بک Pillow):
+    ۱. تلاش برای تولید عکس زنده و بسیار زیبا به کمک API رایگان و بدون محدودیت Pollinations.ai
+    ۲. در صورت خطای شبکه، دانلود یک تصویر استاتیک آبستره تکنولوژی از Unsplash جهت تضمین سلامت بصری
+    """
+    logger.info("اجرای مکانیسم فال‌بک پیشرفته پروداکشن برای تولید تصویر...")
+    add_log_event(state.message_id, "IMAGE_FALLBACK_TRIGGERED", 
+                  "سرویس deAPI با خطا مواجه شد. در حال تولید تصویر هنری باکیفیت از لایه موازی کمکی...")
+
+    # ۱. تلاش برای استفاده از Pollinations AI (تولید عکس واقعی با موتور FLUX بدون نیاز به کلید)
+    try:
+        encoded_prompt = urllib.parse.quote(prompt)
+        pollinations_url = f"https://image.pollinations.ai/p/{encoded_prompt}?width=1024&height=768&nologo=true&seed={state.local_id}"
+        
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        res = requests.get(pollinations_url, headers=headers, timeout=20)
+        if res.status_code == 200 and len(res.content) > 5000:
+            add_log_event(state.message_id, "IMAGE_FALLBACK_POLLINATIONS_SUCCESS", 
+                          "تصویر هنری باکیفیت با موفقیت توسط موتور کمکی Pollinations تولید و دانلود شد.")
+            return {
+                "selected_image_url": pollinations_url,
+                "selected_image_bytes": res.content
+            }
+    except Exception as e:
+        logger.warning(f"Pollinations.ai fallback failed: {e}")
+
+    # ۲. لایه نهایی حفاظت (دانلود تصویر استاتیک فناوری فوق‌العاده باکیفیت از Unsplash به جای Pillow متنی قدیمی)
+    fallback_unsplash_urls = [
+        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1200&q=80",
+        "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=1200&q=80"
+    ]
+    
+    selected_unsplash_url = fallback_unsplash_urls[state.local_id % len(fallback_unsplash_urls)]
+    add_log_event(state.message_id, "IMAGE_FALLBACK_UNSPLASH", 
+                  "دانلود تصویر استاتیک فناوری از سرورهای Unsplash به عنوان لایه حفاظت نهایی...")
+
+    try:
+        res = requests.get(selected_unsplash_url, timeout=15)
+        if res.status_code == 200:
+            return {
+                "selected_image_url": selected_unsplash_url,
+                "selected_image_bytes": res.content
+            }
+    except Exception as e:
+        logger.error(f"Unsplash fallback download failed: {e}")
+
+    # ۳. بازگرداندن آدرس معتبر نهایی در بدترین سناریو ممکن جهت جلوگیری از خراب شدن طرح صفحات
+    return {
+        "selected_image_url": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+        "selected_image_bytes": b""
+    }
 
 
 # ────────────────────────────────────────────────────────────────
@@ -448,7 +511,7 @@ def image_finder_node(state: ImageWorkflowState) -> Dict[str, Any]:
 
 
 def image_generator_node(state: ImageWorkflowState) -> Dict[str, Any]:
-    """تولید تصویر هنری با به کارگیری مدل Z Image در سرویس deAPI"""
+    """تولید تصویر هنری با به کارگیری مدل Z Image در سرویس deAPI به همراه سیستم فال‌بک پیشرفته و فوق‌العاده منعطف"""
     final_prompt = state.fallback_prompt or state.prompt
     logger.info("اجرای نود تولید تصویر از نو با استفاده از مدل Z Image...")
     add_log_event(state.message_id, "IMAGE_GENERATOR_START", "در حال تولید تصویر با کیفیت با مدل Z-Image-Turbo...")
@@ -459,8 +522,8 @@ def image_generator_node(state: ImageWorkflowState) -> Dict[str, Any]:
     if not api_key:
         logger.error("DEAPI_API_KEY inside environment variables or DB is missing.")
         add_log_event(state.message_id, "IMAGE_GENERATOR_ERROR",
-                      "کلید API مربوط به deAPI یافت نشد. استفاده از جایگزین محلی Pillow...")
-        return get_pillow_fallback(state, final_prompt)
+                      "کلید API مربوط به deAPI یافت نشد. استفاده از جایگزین باکیفیت پروداکشن...")
+        return get_high_quality_production_fallback(state, final_prompt)
 
     url = "https://api.deapi.ai/api/v1/client/txt2img"
     headers = {
@@ -484,7 +547,7 @@ def image_generator_node(state: ImageWorkflowState) -> Dict[str, Any]:
             request_id = res_data.get("data", {}).get("request_id") or res_data.get("request_id")
             if not request_id:
                 logger.error(f"Failed to retrieve request_id from deAPI response: {res_data}")
-                return get_pillow_fallback(state, final_prompt)
+                return get_high_quality_production_fallback(state, final_prompt)
 
             add_log_event(state.message_id, "IMAGE_GENERATOR_SUBMITTED",
                           f"درخواست به deAPI ارسال شد. شناسه فرآیند: {request_id}. در حال پایش وضعیت...")
@@ -534,7 +597,7 @@ def image_generator_node(state: ImageWorkflowState) -> Dict[str, Any]:
 
             logger.error(f"Could not retrieve completed image from deAPI for job {request_id}")
             add_log_event(state.message_id, "IMAGE_GENERATOR_TIMEOUT",
-                          "عدم پاسخ مناسب یا بروز تایم‌اوت در deAPI. استفاده از عکس پیش‌فرض Pillow...")
+                          "عدم پاسخ مناسب یا بروز تایم‌اوت در deAPI. استفاده از عکس پروداکشن جایگزین...")
         else:
             logger.error(f"deAPI txt2img call failed with status {response.status_code}: {response.text}")
             add_log_event(state.message_id, "IMAGE_GENERATOR_API_FAIL",
@@ -544,35 +607,7 @@ def image_generator_node(state: ImageWorkflowState) -> Dict[str, Any]:
         logger.error(f"Error calling deAPI txt2img: {e}", exc_info=True)
         add_log_event(state.message_id, "IMAGE_GENERATOR_EXCEPTION", f"خطای استثنا در زمان ارتباط با deAPI: {str(e)}")
 
-    return get_pillow_fallback(state, final_prompt)
-
-
-def get_pillow_fallback(state: ImageWorkflowState, prompt: str) -> Dict[str, Any]:
-    try:
-        img = Image.new("RGB", (1200, 675), color=(20, 24, 33))
-        draw = ImageDraw.Draw(img)
-
-        display_text = f"AI Generated Image\nPrompt: {prompt[:80]}..."
-        draw.text((50, 300), display_text, fill=(200, 205, 215))
-
-        img_io = io.BytesIO()
-        img.save(img_io, format="JPEG", quality=90)
-        img_bytes = img_io.getvalue()
-
-        selected_url = "https://mocked.generator/replicate_flux.jpg"
-        add_log_event(state.message_id, "IMAGE_GENERATOR_MOCK_SUCCESS",
-                      "تصویر گرافیکی به صورت موقت با کتابخانه Pillow ترسیم و آماده‌سازی شد.")
-        return {
-            "selected_image_url": selected_url,
-            "selected_image_bytes": img_bytes
-        }
-
-    except Exception as e:
-        logger.error(f"Error creating mock image: {e}")
-        return {
-            "selected_image_url": "https://mocked.generator/error_placeholder.jpg",
-            "selected_image_bytes": b""
-        }
+    return get_high_quality_production_fallback(state, final_prompt)
 
 
 def image_saver_node(state: ImageWorkflowState) -> Dict[str, Any]:

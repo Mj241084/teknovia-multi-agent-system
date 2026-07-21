@@ -31,27 +31,51 @@ const safeCategoryUrl = `/category/${encodeURI(category.slug)}`;
       </div>
     </div>
     <div class="h-24 w-32 sm:w-40 rounded-lg overflow-hidden shrink-0">
-      <!-- تصویر کارت افقی به همراه بهینه‌سازی‌های عملکردی، عدم ایجاد CLS و لودینگ تنبل کلاینت -->
-      <img 
-        src={article.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
-        alt={article.title} 
-        class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
-        loading="lazy" 
-        decoding="async"
-      />
+      <!-- شرط هوشمند بررسی نوع رسانه شاخص جهت جلوگیری از نمایش ویدیو در تگ تصویر در کارت افقی -->
+      {article.featured_media?.media_type === 'video' ? (
+        <video 
+          src={article.featured_media.media_url} 
+          class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
+          autoplay 
+          loop 
+          muted 
+          playsinline
+          preload="metadata"
+        />
+      ) : (
+        <img 
+          src={article.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
+          alt={article.title} 
+          class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
+          loading="lazy" 
+          decoding="async"
+        />
+      )}
     </div>
   </article>
 ) : (
   <article class="bg-card/50 border border-border/50 rounded-2xl overflow-hidden hover:border-emerald-500/50 hover:shadow-lg transition duration-300 flex flex-col">
     <div class="h-44 w-full overflow-hidden relative">
-      <!-- تصویر کارت عمومی به همراه اولویت لودینگ متناسب با عملکرد وب -->
-      <img 
-        src={article.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
-        alt={article.title} 
-        class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
-        loading="lazy" 
-        decoding="async"
-      />
+      <!-- شرط هوشمند بررسی نوع رسانه شاخص جهت جلوگیری از نمایش ویدیو در تگ تصویر در کارت عمودی -->
+      {article.featured_media?.media_type === 'video' ? (
+        <video 
+          src={article.featured_media.media_url} 
+          class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
+          autoplay 
+          loop 
+          muted 
+          playsinline
+          preload="metadata"
+        />
+      ) : (
+        <img 
+          src={article.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
+          alt={article.title} 
+          class="w-full h-full object-cover hover:scale-105 transition-transform duration-700" 
+          loading="lazy" 
+          decoding="async"
+        />
+      )}
       <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
       <span class="absolute top-3 right-3 px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-black/60 backdrop-blur text-white flex items-center gap-1.5 border border-white/10">
         {category.icon_url ? (

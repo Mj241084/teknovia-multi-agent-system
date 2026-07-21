@@ -487,7 +487,6 @@ def analyzer_node(state: MessageStates):
     api = ApiContainer.objects.filter(status=True, provider__in=["gemini", "google"]).order_by('today_use', '?').first()
     api_key = api.key if api else os.getenv("GEMINI_API_KEY")
 
-    # 🛑 اضافه شدن سد دفاعی فوق‌العاده سخت‌گیرانه عدم تغییر المان‌های رابط کاربری در اسکرین‌شات‌ها (Anti-UI-Tampering)
     context_instruction = (
         "You are the Senior Multimodal Art Director and Visual Quality Inspector.\n"
         "You are given a raw technology news text as context, alongside one or more media files (images/videos) associated with it.\n"
@@ -609,7 +608,6 @@ def analyzer_node(state: MessageStates):
                 media_item.is_analyzed = True
                 media_item.save()
 
-                # ثبت هوشمند درخواست ادیت برای عکس‌هایی که آیدی کانال یا لوگوی منبع دارند
                 if analysis.needs_edit and analysis.edit_instruction and media_item.media_type == MediaContainer.MediaTypes.IMAGE:
                     edit_requests.append({
                         "media_id": analysis.media_id,
@@ -650,10 +648,6 @@ def analyzer_node(state: MessageStates):
     return Command(goto="saver")
 
 
-# ────────────────────────────────────────────────────────────────
-# نود ویرایشگر تصویر (Image Editor Node)
-# ────────────────────────────────────────────────────────────────
-
 def image_editor_node(state: MessageStates):
     """
     نود ویرایش هوشمند تصاویر: ارسال تصویر به مدل Qwen Image Edit Plus جهت پاک‌سازی لوگو و واتر مارک
@@ -681,7 +675,6 @@ def image_editor_node(state: MessageStates):
             if media_item.media_type != MediaContainer.MediaTypes.IMAGE or not media_item.media:
                 continue
 
-            # ۱. خواندن بایت‌های اصلی از S3 یا دیسک محلی
             media_item.media.open('rb')
             img_bytes = media_item.media.read()
             media_item.media.close()
@@ -689,7 +682,6 @@ def image_editor_node(state: MessageStates):
             logger.info(f"ارسال تصویر {media_id} به Qwen Image Edit برای حذف واترمارک: {instruction}")
             add_log_event(state.message_id, "IMAGE_EDITOR_SUBMIT", f"ارسال تصویر {media_id} با دستور: {instruction}")
 
-            # ۲. ارسال درخواست ویرایش تصویر به deAPI
             url = "https://api.deapi.ai/api/v2/images/edits"
             headers = {
                 "Authorization": f"Bearer {api_key}"
@@ -713,12 +705,11 @@ def image_editor_node(state: MessageStates):
                     logger.error(f"Failed to get request_id for media edit: {res_data}")
                     continue
 
-                # ۳. پایش وضعیت Polling با ظرفیت بالا و تاخیر فزاینده مناسب جهت عدم وقوع تایم‌اوت در پردازش‌های سنگین
                 status_url = f"https://api.deapi.ai/api/v2/jobs/{request_id}"
                 delay = 3.0
                 image_url = None
 
-                for attempt in range(30):  # ۲۵ تا ۳۰ تلاش جهت پایداری پردازش‌های سنگین Qwen
+                for attempt in range(30):
                     time.sleep(delay)
                     try:
                         status_res = requests.get(status_url, headers={"Authorization": f"Bearer {api_key}"},
@@ -744,17 +735,13 @@ def image_editor_node(state: MessageStates):
                     delay = min(delay * 1.5, 10.0)
 
                 if image_url:
-                    # ۴. دانلود بایت‌های تصویر ادیت‌شده جدید
                     edited_bytes = download_single_image_bytes(image_url, timeout=15)
                     if edited_bytes:
-                        # فشرده‌سازی نسخه ادیت‌شده با استاندارد وب
                         optimized_bytes = compress_edited_image(edited_bytes, max_dim=1200, quality=85)
 
-                        # ۵. اوررایت درجا روی همان مدل و آدرس فایل اصلی در دیتابیس
                         original_filename = os.path.basename(media_item.media.name)
                         django_file = ContentFile(optimized_bytes, name=original_filename)
 
-                        # ذخیره‌سازی مجدد فایل روی دیسک محلی
                         media_item.media.save(original_filename, django_file, save=True)
                         logger.info(f"تصویر {media_id} با موفقیت ویرایش و روی فایل قبلی بازنویسی شد.")
                         add_log_event(state.message_id, "IMAGE_EDITOR_SUCCESS",
@@ -777,13 +764,9 @@ def image_editor_node(state: MessageStates):
             pass
 
     add_log_event(state.message_id, "IMAGE_EDITOR_COMPLETE",
-                  f"پایان موفقیت‌آمیز عملیات ادیت تصاویر. تعداد {edited_count} تصویر پاک‌سازی شدند.")
+                  f"پان موفقیت‌آمیز عملیات ادیت تصاویر. تعداد {edited_count} تصویر پاک‌سازی شدند.")
     return Command(goto="saver")
 
-
-# ────────────────────────────────────────────────────────────────
-# نود نهایی ذخیره برداری (Saver Node)
-# ────────────────────────────────────────────────────────────────
 
 def saver_node(state: MessageStates):
     try:
