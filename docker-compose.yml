@@ -1,14 +1,10 @@
-version: '3.8'
-
 services:
   # دیتابیس اصلی پروژه (پستگرس ۱۸ پایدار)
   postgres_db:
     image: postgres:18-alpine
     container_name: teknovia_postgres
-    environment:
-      POSTGRES_DB: ${PG_DB_NAME:-teknovia_db}
-      POSTGRES_USER: ${PG_DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${PG_DB_PASSWORD:-postgres_pass}
+    env_file:
+      - .env
     volumes:
       - postgres_data:/var/lib/postgresql
     ports:
@@ -25,11 +21,13 @@ services:
     networks:
       - teknovia_network
 
-  # سرویس برداری دیتابیس TurboVec (منطبق با نام فیزیکی پوشه با حروف بزرگ)
+  # سرویس برداری دیتابیس TurboVec
   vector_fastapi:
     build:
       context: "./AI-Agency(FastAPI)"
     container_name: teknovia_vector
+    env_file:
+      - .env
     ports:
       - "8000:8000"
     volumes:
@@ -37,7 +35,7 @@ services:
     networks:
       - teknovia_network
 
-  # وب‌سرویس اصلی جنگو (تزریق استاندارد متغیرهای دیتابیس و کش داکر)
+  # وب‌سرویس اصلی جنگو (تزریق خودکار تمام متغیرهای فایل .env)
   django_backend:
     build:
       context: ./AI-Agency
@@ -47,12 +45,11 @@ services:
       - ./AI-Agency:/app
     ports:
       - "8001:8001"
+    env_file:
+      - .env
     environment:
       - DATABASE_HOST=postgres_db
       - REDIS_URL=redis://redis_cache:6379/0
-      - PG_DB_NAME=${PG_DB_NAME:-teknovia_db}
-      - PG_DB_USER=${PG_DB_USER:-postgres}
-      - PG_DB_PASSWORD=${PG_DB_PASSWORD:-postgres_pass}
     depends_on:
       - postgres_db
       - redis_cache
@@ -60,7 +57,7 @@ services:
     networks:
       - teknovia_network
 
-  # ورکر پردازش تسک‌های پس‌زمینه سلری
+  # ورکر پردازش تسک‌های پس‌زمینه سلری (تزریق خودکار تمام متغیرهای فایل .env)
   celery_worker:
     build:
       context: ./AI-Agency
@@ -68,19 +65,18 @@ services:
     command: celery -A core worker --loglevel=info
     volumes:
       - ./AI-Agency:/app
+    env_file:
+      - .env
     environment:
       - DATABASE_HOST=postgres_db
       - REDIS_URL=redis://redis_cache:6379/0
-      - PG_DB_NAME=${PG_DB_NAME:-teknovia_db}
-      - PG_DB_USER=${PG_DB_USER:-postgres}
-      - PG_DB_PASSWORD=${PG_DB_PASSWORD:-postgres_pass}
     depends_on:
       - redis_cache
       - django_backend
     networks:
       - teknovia_network
 
-  # سرویس مانیتورینگ و شنود پیام‌های تلگرام (تلتون) - فعال‌سازی خودکار و ۲۴ ساعته تلتون در بک‌گراند داکر
+  # سرویس مانیتورینگ و شنود پیام‌های تلگرام (تزریق خودکار تمام متغیرهای فایل .env)
   telethon_listener:
     build:
       context: ./AI-Agency
@@ -88,29 +84,26 @@ services:
     command: python manage.py run_telethon
     volumes:
       - ./AI-Agency:/app
+    env_file:
+      - .env
     environment:
       - DATABASE_HOST=postgres_db
       - REDIS_URL=redis://redis_cache:6379/0
-      - PG_DB_NAME=${PG_DB_NAME:-teknovia_db}
-      - PG_DB_USER=${PG_DB_USER:-postgres}
-      - PG_DB_PASSWORD=${PG_DB_PASSWORD:-postgres_pass}
-      - TELEGRAM_APP_ID=${TELEGRAM_APP_ID}
-      - TELEGRAM_APP_HASH=${TELEGRAM_APP_HASH}
-      - TELEGRAM_SESSION=${TELEGRAM_SESSION}
-      - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID}
     depends_on:
       - redis_cache
       - django_backend
     networks:
       - teknovia_network
 
-  # فرانت‌اند آسترو ۷ (تزریق آدرس وب‌سرور جنگو و ردیس داکر)
+  # فرانت‌اند آسترو ۷ (تزریق خودکار تمام متغیرهای فایل .env)
   astro_frontend:
     build:
       context: ./AI-Agency-Astro
     container_name: teknovia_astro
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - BACKEND_URL=http://django_backend:8001
       - REDIS_URL=redis://redis_cache:6379
