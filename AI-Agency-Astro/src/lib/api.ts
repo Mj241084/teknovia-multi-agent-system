@@ -1,7 +1,8 @@
 // src/lib/api.ts
 import Redis from 'ioredis';
 
-export const BASE_URL = import.meta.env.BACKEND_URL || 'http://127.0.0.1:8001';
+const nodeProcess = typeof process !== 'undefined' ? process : (globalThis as any).process;
+export const BASE_URL = (nodeProcess?.env?.BACKEND_URL) || 'http://127.0.0.1:8001';
 
 
 // پالت رنگ‌های ثابت هشت‌گانه مناسب برای ترکیب ترتیبی دسته‌بندی‌ها
@@ -198,10 +199,14 @@ export async function submitComment(articleId: number, data: { name: string; ema
 // ────────────────────────────────────────────────────────────────
 // سیستم کنترلی مهار نرخ درخواست (Rate Limiting) با استفاده از ردیس و فال‌بک رم
 // ────────────────────────────────────────────────────────────────
-
 let redis: Redis | null = null;
 try {
-  redis = new Redis(import.meta.env.REDIS_URL || 'redis://127.0.0.1:6379', {
+  // دور زدن هوشمندانه خطای تایپ‌اسکریپت با استفاده از شیء سراسری globalThis
+  // @ts-ignore
+  const nodeProcess = typeof process !== 'undefined' ? process : (globalThis as any).process;
+  const redisUrl = (nodeProcess?.env?.REDIS_URL) || 'redis://127.0.0.1:6379';
+
+  redis = new Redis(redisUrl, {
     maxRetriesPerRequest: 1,
     connectTimeout: 500,
   });
@@ -211,7 +216,6 @@ try {
 } catch {
   redis = null;
 }
-
 const memoryLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 export async function isRateLimited(ip: string, action: string, limit: number, windowSeconds: number): Promise<boolean> {
