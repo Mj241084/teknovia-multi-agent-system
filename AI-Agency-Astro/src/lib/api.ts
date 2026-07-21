@@ -1,14 +1,8 @@
+// src/lib/api.ts
 import Redis from 'ioredis';
 
-// تعریف یک تابع پویا برای فرار از سیستم هاردکد بیلدِ ویت (Vite Build-time Inlining)
-const getRuntimeEnv = (key: string): string | undefined => {
-  // @ts-ignore
-  const nodeProcess = typeof process !== 'undefined' ? process : (globalThis as any).process;
-  return nodeProcess?.env?.[key];
-};
+export const BASE_URL = 'http://django_backend:8001';
 
-// دریافت آدرس بک‌اند در زمان اجرای واقعی کانتینر داکر
-export const BASE_URL = getRuntimeEnv('BACKEND_URL') || 'http://127.0.0.1:8001';
 
 // پالت رنگ‌های ثابت هشت‌گانه مناسب برای ترکیب ترتیبی دسته‌بندی‌ها
 export const DETERMINISTIC_PALETTE = [
@@ -204,12 +198,10 @@ export async function submitComment(articleId: number, data: { name: string; ema
 // ────────────────────────────────────────────────────────────────
 // سیستم کنترلی مهار نرخ درخواست (Rate Limiting) با استفاده از ردیس و فال‌بک رم
 // ────────────────────────────────────────────────────────────────
-
 let redis: Redis | null = null;
 try {
-  // دریافت آدرس ردیس داکر در زمان اجرای واقعی کانتینر داکر بدون تداخل بیلد ویت
-  const redisUrl = getRuntimeEnv('REDIS_URL') || 'redis://127.0.0.1:6379';
-  redis = new Redis(redisUrl, {
+  // هاردکد مستقیم آدرس کانتینر ردیس در داکر (مخصوص سرور)
+  redis = new Redis('redis://redis_cache:6379', {
     maxRetriesPerRequest: 1,
     connectTimeout: 500,
   });
@@ -219,7 +211,6 @@ try {
 } catch {
   redis = null;
 }
-
 const memoryLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 export async function isRateLimited(ip: string, action: string, limit: number, windowSeconds: number): Promise<boolean> {
