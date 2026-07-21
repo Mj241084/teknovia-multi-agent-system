@@ -1,3 +1,5 @@
+# workflows/publisher_workflow.py
+
 import os
 import io
 import re
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # ────────────────────────────────────────────────────────────────
-# توابع کمکی تبدیل مارک‌داون به HTML تلگرام و آدرس کانونیکال
+# توابع کمکی تبدیل مارک‌داون به HTML تلگرام و آدرس کانونیکال و کوتاه
 # ────────────────────────────────────────────────────────────────
 
 def get_article_absolute_url(article: Optional[Content]) -> str:
@@ -35,15 +37,26 @@ def get_article_absolute_url(article: Optional[Content]) -> str:
     return f"{frontend_url}/post/{article.slug}/"
 
 
+def get_article_short_url(article: Optional[Content]) -> str:
+    """
+    تولید لینک کوتاه مقاله با استفاده از فیلد short_code جهت ریدایرکت ۳۰۸ در آسترو
+    """
+    if not article or not article.short_code:
+        return ""
+
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://teknovia.ir').rstrip('/')
+    return f"{frontend_url}/s/{article.short_code}"
+
+
 def replace_article_url_placeholder(markdown_text: str, article: Optional[Content]) -> str:
     """
-    جای‌گذاری لینک واقعی مقاله اصلی به جای تگ نگهدارنده <!-- MAIN_ARTICLE_URL -->
+    جای‌گذاری لینک کوتاه مقاله اصلی به جای تگ نگهدارنده <!-- MAIN_ARTICLE_URL -->
     به همراه پوشش هایپرلینک پشت متن
     """
     if not markdown_text:
         return ""
 
-    article_url = get_article_absolute_url(article)
+    article_url = get_article_short_url(article)
     placeholder = "<!-- MAIN_ARTICLE_URL -->"
     hyperlink_text = f"[جزئیات بیشتر...]({article_url})"
 
@@ -135,28 +148,28 @@ async def send_to_telegram_async(channel_id: str, text: str, media_containers: L
                 except Exception as ex:
                     logger.error(f"خطا در آماده‌سازی باینری رسانه {container.id}: {ex}")
 
-        try:
-            entity = int(channel_id)
-        except ValueError:
-            entity = channel_id
-
-        if files_to_send:
-            await client.send_file(entity, files_to_send, caption=text, parse_mode='html')
-        else:
-            await client.send_message(entity, text, parse_mode='html')
-
-        for f in opened_files:
             try:
-                f.close()
-            except Exception:
-                pass
+                entity = int(channel_id)
+            except ValueError:
+                entity = channel_id
 
-        await client.disconnect()
-        return True
+            if files_to_send:
+                await client.send_file(entity, files_to_send, caption=text, parse_mode='html')
+            else:
+                await client.send_message(entity, text, parse_mode='html')
 
-    except Exception as e:
-        logger.error(f"خطا در اجرای فرآیند ارسال Telethon به کانال: {e}", exc_info=True)
-        return False
+            for f in opened_files:
+                try:
+                    f.close()
+                except Exception:
+                    pass
+
+            await client.disconnect()
+            return True
+
+        except Exception as e:
+            logger.error(f"خطا در اجرای فرآیند ارسال Telethon به کانال: {e}", exc_info=True)
+            return False
 
 
 def send_to_telegram_sync(channel_id: str, text: str, media_containers: List[MediaContainer]) -> bool:
@@ -260,7 +273,7 @@ def article_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
 
 def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
     """
-    نود انتشار تلگرام: جای‌گذاری هوشمند لینک مقاله بر پایه اولویت‌های سه‌گانه،
+    نود انتشار تلگرام: جای‌گذاری هوشمند لینک کوتاه مقاله،
     تبدیل خودکار برچسب‌ها به هشتگ و ارسال نهایی با Telethon.
     """
     logger.info(f"اجرای نود انتشار فیزیکی پست تلگرام #{state.post_id}...")
@@ -281,15 +294,14 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
 
         raw_markdown_content = post.content or ""
         placeholder = "<!-- MAIN_ARTICLE_URL -->"
-        # تصحیح فیزیکی و پایدار نام کاربری پیش‌فرض کانال تکنوویا به همراه آندرلاین
         channel_username = getattr(settings, 'TELEGRAM_CHANNEL_USERNAME', '@teknovia_ir')
         article = post.main_article
 
         content_processed = raw_markdown_content
 
-        # ۱. پیاده‌سازی منطق سه‌گانه و هوشمند مدیریت لینک‌ها به صورت هایپرلینک پشت متن
+        # ۱. پیاده‌سازی منطق سه‌گانه و هوشمند مدیریت لینک‌ها با استفاده از لینک کوتاه جهت لود بهینه‌تر
         if article:
-            article_url = get_article_absolute_url(article)
+            article_url = get_article_short_url(article)
             hyperlink_text = f"[جزئیات بیشتر...]({article_url})"
 
             if placeholder in content_processed:
@@ -305,7 +317,7 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
         # ۲. اضافه کردن آیدی کانال تلگرام به انتهای پیام
         content_processed += f"\n\n🆔 {channel_username}"
 
-        # ۳. تبدیل داینامیک برچسب‌های مقاله به هشتگ بر پایه اسلاگ بومی (Slug) بدون تغییر کاراکترهای خط تیره
+        # ۳. تبدیل داینامیک برچسب‌های مقاله به هشتگ پس از درج آیدی کانال تلگرام به صورت شیک با خط جدید خالی
         if article:
             tags_list = list(article.tags.all())
             if tags_list:
@@ -314,12 +326,12 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
                     # فراخوانی مستقیم اسلاگ بدون تغییر خط تیره‌ها (مانند #کارت-گرافیک)
                     slug_cleaned = t.slug.strip() if t.slug else ""
                     if slug_cleaned:
-                        slug_cleaned=slug_cleaned.replace('-','_')
+                        slug_cleaned = slug_cleaned.replace('-', '_')
                         hashtags.append(f"#{slug_cleaned}")
 
-                # الصاق هشتگ‌ها با فاصله در خط پایانی پیام
+                # الصاق هشتگ‌ها با فاصله پس از آیدی کانال به صورت تمیز
                 if hashtags:
-                    content_processed += "\n" + " ".join(hashtags)
+                    content_processed += "\n\n" + " ".join(hashtags)
 
         # ۴. تبدیل مارک‌داون پردازش‌شده به فرمت HTML اختصاصی تلگرام
         formatted_telegram_html = markdown_to_telegram_html(content_processed)
