@@ -56,6 +56,9 @@ const newsArticleJsonLd = {
     "@id": article.canonical_url || `https://teknovia.ir/post/${article.slug}`
   }
 };
+
+// تنظیم هدر کش ۵ دقیقه‌ای CDN برای صفحه تفصیلی مقاله
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 ---
 
 <Layout title={`${article.title} | تکنوویا`} description={article.summary} canonicalUrl={article.canonical_url}>
@@ -75,7 +78,7 @@ const newsArticleJsonLd = {
 
   <main class="max-w-3xl mx-auto px-4 py-8 space-y-6 text-right dir-rtl">
     
-    <!-- بهینه‌سازی بارگذاری تصویر شاخص LCP در صفحه جزئیات با اولویت بالا و غیرفعال کردن لود تنبل -->
+    <!-- بهینه‌سازی LCP -->
     <div class="rounded-2xl overflow-hidden h-64 sm:h-96 relative">
       <img 
         src={article.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80'} 
@@ -122,7 +125,7 @@ const newsArticleJsonLd = {
       readingTime={article.reading_time}
     />
 
-    <!-- بدنه مارک‌داون رندر شده در سرور مجهز به کلاس .prose با استایل‌های غنی و خوانایی بالا -->
+    <!-- بدنه مارک‌داون رندر شده در سرور مجهز به کلاس .prose -->
     <div class="prose max-w-none text-base font-sans border-b border-border/40 pb-6" set:html={htmlContent} />
 
     {article.tags && article.tags.length > 0 && (
@@ -136,12 +139,12 @@ const newsArticleJsonLd = {
       </div>
     )}
 
-    <!-- لایه نظرات مجهز به سیستم لودینگ تنبل هوشمند کلاینت با دایرکتیو client:visible -->
+    <!-- لایه نظرات -->
     <div class="pt-6 border-b border-border/40 pb-6">
       <ArticleComments client:visible articleId={article.id} />
     </div>
 
-    <!-- بخش مقالات مشابه ارتقا یافته به جزیره تعاملی با لودینگ کلاینت کاملاً معوق (client:visible) -->
+    <!-- بخش مقالات مشابه -->
     {similarArticles && similarArticles.length > 0 && (
       <div class="space-y-4 pt-4">
         <h3 class="font-black text-sm text-foreground border-r-2 border-emerald-500 pr-2">اخبار و مقالات مشابه</h3>

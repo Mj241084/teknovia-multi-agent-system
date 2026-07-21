@@ -5,13 +5,16 @@ import { fetchAllCategories } from '../lib/api';
 import CategoryNode from '../components/AstroLayouts/CategoryNode.astro';
 
 const categories = await fetchAllCategories();
+
+// تنظیم هدر کش ۵ دقیقه‌ای CDN برای صفحه لیست کل دسته‌بندی‌ها
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 ---
 
 <Layout title="همه دسته‌بندی‌ها و ساختار موضوعی | تک‌نیکا">
   <main class="max-w-4xl mx-auto px-4 py-12 text-right dir-rtl space-y-8">
     <div class="border-b border-border/40 pb-4">
       <h1 class="text-2xl font-black text-emerald-400">آرشیو موضوعی و درخت دسته‌بندی‌ها</h1>
-      <p class="text-xs text-muted-foreground mt-2">کل دسته‌ها و زیرمجموعه‌های فعال پورتال خبری تکنوویابه صورت ساختار یافته.</p>
+      <p class="text-xs text-muted-foreground mt-2">کل دسته‌ها و زیرمجموعه‌های فعال پورتال خبری تکنوویا به صورت ساختار یافته.</p>
     </div>
 
     <div class="bg-card border border-border/50 p-6 rounded-2xl max-w-xl mx-auto space-y-2">

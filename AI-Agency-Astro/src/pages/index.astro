@@ -7,6 +7,9 @@ import { HeroSliderSection, NewsletterSection } from '../components/SolidIslands
 import { FlameIcon } from '../components/Icons';
 
 const data = await fetchHomepageData();
+
+// تنظیم هدر کش ۵ دقیقه‌ای CDN برای صفحه اصلی
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 ---
 
 <Layout title="تکنوویا— اخبار هوش مصنوعی و فناوری">
@@ -46,7 +49,7 @@ const data = await fetchHomepageData();
       </div>
 
       <aside class="lg:col-span-1 space-y-6 lg:sticky lg:top-24 h-fit text-right dir-rtl">
-        <!-- بلوک مطالب پربازدید -->
+        <!-- %بلوک مطالب پربازدید -->
         <div class="border border-border/60 bg-card/30 p-5 rounded-2xl space-y-4">
           <div class="flex items-center gap-2 border-b border-border/40 pb-2">
             <FlameIcon class="h-4.5 w-4.5 text-rose-500" />
@@ -85,17 +88,10 @@ const data = await fetchHomepageData();
             ))}
           </div>
         </div>
-
-        <!-- کارت گرادیانی طراح -->
-        <!-- <div class="rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white space-y-3 shadow-lg shadow-emerald-500/10">
-          <span class="text-xs font-bold">📈 رشد بازدیدکنندگان</span>
-          <p class="text-2xl font-black">{toPersianDigits('+۳۸%')}</p>
-          <p class="text-[11px] opacity-80 leading-relaxed">رشد چشمگیر و میلیونی ترافیک پورتال تکنوویاطی ماه گذشته در حوزه مقالات تخصصی کوانتوم و هوش مصنوعی مولد.</p>
-        </div> -->
       </aside>
     </div>
 
-    <!-- ۷. بخش‌های داینامیک دسته‌بندی‌های محبوب و مقالات بر اساس تصویر ارسالی -->
+    <!-- ۷. بخش‌های داینامیک دسته‌بندی‌های محبوب -->
     {data.popular_categories_articles.map((popCat: any) => (
       <section class="py-8 border-t border-border/40 text-right dir-rtl">
         <div class="flex items-center justify-between border-b border-border/50 pb-3 mb-6">
@@ -106,7 +102,6 @@ const data = await fetchHomepageData();
           <a href={`/category/${popCat.category_slug}`} class="text-xs text-emerald-400 hover:underline">آرشیو کامل ←</a>
         </div>
 
-        {/* دسکتاپ چیدمان RTL هوشمند */}
         <div class="hidden md:grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 flex flex-col gap-4">
             {popCat.articles.slice(1, 3).map((item: any) => (
@@ -131,7 +126,6 @@ const data = await fetchHomepageData();
           </div>
         </div>
 
-        {/* موبایل اسلایدر نیتیو بومی بدون JS */}
         <div class="md:hidden flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4">
           {popCat.articles.map((item: any) => (
             <div class="w-72 shrink-0 snap-center">
@@ -146,5 +140,4 @@ const data = await fetchHomepageData();
     <NewsletterSection client:load />
 
   </main>
-
 </Layout>

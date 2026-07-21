@@ -15,9 +15,12 @@ try {
 }
 
 const { category_info, child_categories, articles } = data;
+
+// تنظیم هدر کش ۵ دقیقه‌ای CDN برای صفحه آرشیو دسته‌بندی
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
 ---
 
-<!-- تزریق هوشمند عنوان اختصاصی سئو و توضیحات غنی شده دسته‌بندی از دیتابیس به همراه کنترل فیزیکی متای noindex گوگل -->
+<!-- تزریق هوشمند عنوان اختصاصی سئو و توضیحات -->
 <Layout 
   title={category_info.meta_title || `${category_info.name} | تکنوویا`} 
   description={category_info.meta_description || category_info.description || `اخبار و مقالات دسته‌بندی ${category_info.name}`}
@@ -25,7 +28,7 @@ const { category_info, child_categories, articles } = data;
 >
   <main class="w-full max-w-full lg:max-w-7xl overflow-x-hidden lg:overflow-x-visible mx-auto px-4 sm:px-6 py-12 text-right dir-rtl space-y-8">
     
-    <!-- هدر دسته‌بندی با لوگوی فیزیکی بومی به صورت کاملاً مینیمال بالا سمت راست -->
+    <!-- هدر دسته‌بندی با لوگوی فیزیکی بومی -->
     <div class="flex items-center gap-4 border-b border-border/40 pb-6 text-right">
       {category_info.logo_url && (
         <img src={category_info.logo_url} alt={category_info.name} class="w-16 h-16 rounded-2xl object-cover border border-border/60" />
@@ -36,7 +39,7 @@ const { category_info, child_categories, articles } = data;
       </div>
     </div>
 
-    <!-- زیردسته‌ها مستقیماً در زیر دسته اصلی بدون متن ثابت هدر و با دایره‌های کوچک‌تر در موبایل و بوردرهای داینامیک -->
+    <!-- زیردسته‌ها -->
     {child_categories && child_categories.length > 0 && (
       <div class="flex overflow-x-auto gap-4 pb-4 scrollbar-none snap-x justify-start items-center">
         {child_categories.map((child: any) => {
