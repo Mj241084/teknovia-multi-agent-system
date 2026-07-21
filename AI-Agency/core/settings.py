@@ -29,10 +29,12 @@ SECRET_KEY = 'django-insecure-xxj+ohfa&@ylctst7seb1&sli2x=yau&#)!zh!wu3olw7)rt-a
 DEBUG = os.getenv('DEBUG',False)
 
 ALLOWED_HOSTS = [
-    'https://teknovia.ir',
-    'https://www.teknovia.ir',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
+    'teknovia.ir',
+    'www.teknovia.ir',
+    'django-backend',
+    'teknovia_django',
+    'localhost',
+    '127.0.0.1',
 ]
 CSRF_TRUSTED_ORIGINS = [
     'https://teknovia.ir',
