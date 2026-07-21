@@ -1,7 +1,7 @@
 // src/lib/api.ts
 import Redis from 'ioredis';
 
-export const BASE_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8001';
+export const BASE_URL = import.meta.env.BACKEND_URL || 'http://127.0.0.1:8001';
 
 
 // پالت رنگ‌های ثابت هشت‌گانه مناسب برای ترکیب ترتیبی دسته‌بندی‌ها
@@ -201,7 +201,7 @@ export async function submitComment(articleId: number, data: { name: string; ema
 
 let redis: Redis | null = null;
 try {
-redis = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
+  redis = new Redis(import.meta.env.REDIS_URL || 'redis://127.0.0.1:6379', {
     maxRetriesPerRequest: 1,
     connectTimeout: 500,
   });

@@ -1,5 +1,5 @@
 services:
-  # دیتابیس اصلی پروژه (ارتقا یافته به نسخه ۱۸ پایدار و هماهنگ با لوکال شما)
+  # دیتابیس اصلی پروژه (نسخه ۱۸ پایدار و هماهنگ با لوکال شما)
   postgres_db:
     image: postgres:18-alpine
     container_name: teknovia_postgres
@@ -23,7 +23,7 @@ services:
     networks:
       - teknovia_network
 
-  # سرویس برداری دیتابیس TurboVec (منطبق با نام فیزیکی پوشه FastAPI بر روی سیستم شما)
+  # سرویس برداری دیتابیس TurboVec (منطبق با نام فیزیکی پوشه با حروف بزرگ)
   vector_fastapi:
     build:
       context: "./AI-Agency(FastAPI)"

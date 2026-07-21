@@ -1,5 +1,5 @@
-# استفاده از نسخه سبک و پایدار نود اس ۲۰۲۶
-FROM node:20-alpine AS builder
+# استفاده از نسخه پایدار و مدرن Node.js 22 مورد نیاز آسترو ۷
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # کپی فایل‌های پیکربندی پکیج‌ها
@@ -10,8 +10,8 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# مرحله اجرای نهایی وب‌سرور آسترو
-FROM node:20-alpine
+# مرحله اجرای نهایی وب‌سرور آسترو با نسخه هماهنگ Node.js 22
+FROM node:22-alpine
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
