@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-xxj+ohfa&@ylctst7seb1&sli2x=yau&#)!zh!wu3olw7)rt-a
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG',False)
-"
+
 ALLOWED_HOSTS = [
     'https://teknovia.ir',
     'https://www.teknovia.ir',
