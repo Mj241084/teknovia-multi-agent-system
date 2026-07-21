@@ -26,11 +26,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-xxj+ohfa&@ylctst7seb1&sli2x=yau&#)!zh!wu3olw7)rt-a'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ["*"]
-
-
+DEBUG = os.getenv('DEBUG',False)
+"
+ALLOWED_HOSTS = [
+    'https://teknovia.ir',
+    'https://www.teknovia.ir',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+CSRF_TRUSTED_ORIGINS = [
+    'https://teknovia.ir',
+    'https://www.teknovia.ir',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Application definition
 
 INSTALLED_APPS = [
