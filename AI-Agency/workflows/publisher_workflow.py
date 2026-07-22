@@ -324,20 +324,20 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
         content_processed += f"\n\n🆔 {channel_username}"
 
         # ۳. تبدیل داینامیک برچسب‌های مقاله به هشتگ بر پایه اسلاگ بومی (Slug) بدون تغییر کاراکترهای خط تیره
-        if article:
-            tags_list = list(article.tags.all())
-            if tags_list:
-                hashtags = []
-                for t in tags_list:
-                    # فراخوانی مستقیم اسلاگ بدون تغییر خط تیره‌ها (مانند #کارت-گرافیک)
-                    slug_cleaned = t.name.strip() if t.slug else ""
-                    if slug_cleaned:
-                        slug_cleaned = slug_cleaned.replace(' ', '_')
-                        hashtags.append(f"#{slug_cleaned}")
+        # if article:
+        #     tags_list = list(article.tags.all())
+        #     if tags_list:
+        #         hashtags = []
+        #         for t in tags_list:
+        #             # فراخوانی مستقیم اسلاگ بدون تغییر خط تیره‌ها (مانند #کارت-گرافیک)
+        #             slug_cleaned = t.name.strip() if t.slug else ""
+        #             if slug_cleaned:
+        #                 slug_cleaned = slug_cleaned.replace(' ', '_')
+        #                 hashtags.append(f"#{slug_cleaned}")
 
-                # الصاق هشتگ‌ها با فاصله در خط پایانی پیام
-                if hashtags:
-                    content_processed += "\n" + " ".join(hashtags)
+        #         # الصاق هشتگ‌ها با فاصله در خط پایانی پیام
+        #         if hashtags:
+        #             content_processed += "\n" + " ".join(hashtags)
 
         # ۴. تبدیل مارک‌داون پردازش‌شده به فرمت HTML اختصاصی تلگرام
         formatted_telegram_html = markdown_to_telegram_html(content_processed)
