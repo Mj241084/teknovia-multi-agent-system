@@ -66,7 +66,7 @@ ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.DjangoTemplates',
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -179,7 +179,7 @@ STORAGES = {
 }
 
 
-# تنظیمات اصلی Celery مجهز به پایش پیوسته سلامت اتصال ردیس (Health Check)
+# تنظیمات اصلی Celery
 CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 CELERY_ACCEPT_CONTENT = ['json']
@@ -187,7 +187,6 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 
-# پایش سلامت اتصال شبکه ردیس جهت عدم قطع شدن سلری پس از بی‌کاری طولانی‌مدت
 CELERY_BROKER_TRANSPORT_OPTIONS = {
     'health_check_interval': 10,
 }
