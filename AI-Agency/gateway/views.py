@@ -1,3 +1,4 @@
+# /var/www/teknovia/AI-Agency/gateway/views.py
 import logging
 from django.db import transaction
 from django.db.models import F, Q
@@ -68,24 +69,31 @@ class BreakingNewsListView(APIView):
 
 
 class HomepageAggregateView(APIView):
-    """ای‌پی‌آی جامع تجمیع‌کننده صفحه اصلی - بهینه‌سازی شده بدون بارگذاری اخبار فوری و درخت دسته‌بندی‌ها"""
+    """ای‌پی‌آی جامع تجمیع‌کننده صفحه اصلی - تفکیک هوشمند مقالات هیرو، آخرین اخبار و حذف همپوشانی تکراری"""
 
     # noinspection PyMethodMayBeStatic
     def get(self, request, *args, **kwargs):
-        # ۱. آخرین مقالات و اخبار منتشر شده معمولی
+        # ۱. مقالات اختصاصی اسلایدر اصلی هیرو (۳ مقاله منتشر شده اول)
+        hero_news = Content.objects.filter(
+            status=Content.StatusChoices.PUBLISHED
+        ).order_by('-publish_date', '-likes_count')[:3]
+
+        hero_ids = list(hero_news.values_list('id', flat=True))
+
+        # ۲. آخرین اخبار فناوری (حذف فیزیکی مقالات اسلایدر هیرو جهت جلوگیری از تکرار)
         latest_news = Content.objects.filter(
             status=Content.StatusChoices.PUBLISHED
-        ).order_by('-publish_date', '-id')[:10]
+        ).exclude(id__in=hero_ids).order_by('-publish_date', '-id')[:8]
 
-        # ۲. پربازدیدترین مقالات منتشر شده
+        # ۳. پربازدیدترین مقالات منتشر شده
         most_viewed = Content.objects.filter(
             status=Content.StatusChoices.PUBLISHED
         ).order_by('-views_count', '-id')[:10]
 
-        # ۳. محبوب‌ترین برچسب‌های سیستم بر اساس بیشترین بازدید
+        # ۴. محبوب‌ترین برچسب‌های سیستم بر اساس بیشترین بازدید
         popular_tags = Tag.objects.all().order_by('-views_count', '-id')[:15]
 
-        # ۴. دسته‌بندی‌های برتر به همراه مقالات پربازدید زیرمجموعه‌شان
+        # ۵. دسته‌بندی‌های برتر به همراه مقالات غیرتکراری زیرمجموعه‌شان
         popular_cats_data = []
         top_categories = Category.objects.filter(is_active=True).order_by('-views_count', 'order')[:5]
         for cat in top_categories:
@@ -93,21 +101,24 @@ class HomepageAggregateView(APIView):
             cat_articles = Content.objects.filter(
                 category__id__in=all_sub_ids,
                 status=Content.StatusChoices.PUBLISHED
-            ).distinct().order_by('-views_count', '-id')[:4]
+            ).exclude(id__in=hero_ids).distinct().order_by('-views_count', '-id')[:4]
 
-            popular_cats_data.append({
-                "category_id": cat.id,
-                "category_name": cat.name,
-                "category_slug": cat.slug,
-                "articles": ContentListSerializer(cat_articles, many=True, context={'request': request}).data
-            })
+            if cat_articles.exists():
+                popular_cats_data.append({
+                    "category_id": cat.id,
+                    "category_name": cat.name,
+                    "category_slug": cat.slug,
+                    "articles": ContentListSerializer(cat_articles, many=True, context={'request': request}).data
+                })
 
         # سریالایز کردن ساختارها
+        hero_serializer = ContentListSerializer(hero_news, many=True, context={'request': request})
         latest_serializer = ContentListSerializer(latest_news, many=True, context={'request': request})
         most_viewed_serializer = ContentListSerializer(most_viewed, many=True, context={'request': request})
         tags_serializer = ContentTagSerializer(popular_tags, many=True, context={'request': request})
 
         return Response({
+            "hero_news": hero_serializer.data,
             "latest_news": latest_serializer.data,
             "most_viewed": most_viewed_serializer.data,
             "popular_tags": tags_serializer.data,
@@ -122,7 +133,6 @@ class SmartViewCounterView(APIView):
     def post(self, request, pk, *args, **kwargs):
         try:
             with transaction.atomic():
-                # قفل کردن رکورد جهت تراکنش همزمان ایمن
                 content = Content.objects.select_for_update().get(pk=pk, status=Content.StatusChoices.PUBLISHED)
 
                 # ۱. افزایش بازدید مقاله اصلی
@@ -133,7 +143,7 @@ class SmartViewCounterView(APIView):
                 if category_ids:
                     Category.objects.filter(id__in=category_ids).update(views_count=F('views_count') + 1)
 
-                # ۳. افزایش بازدید برچسب‌های سفارشی متصل با کلید خارجی مستقیم و بومی دیتابیس
+                # ۳. افزایش بازدید برچسب‌های سفارشی متصل
                 tag_ids = list(content.tags.values_list('id', flat=True))
                 if tag_ids:
                     Tag.objects.filter(id__in=tag_ids).update(views_count=F('views_count') + 1)
@@ -188,7 +198,7 @@ class ShareArticleView(APIView):
 
 
 class GetCommentsView(ListAPIView):
-    """دریافت نظرات تایید شده سطح اول (بدون والد) به همراه پاسخ‌های متصل به آن‌ها"""
+    """دریافت نظرات تایید شده سطح اول به همراه پاسخ‌ها"""
     serializer_class = CommentSerializer
 
     def get_queryset(self):
@@ -201,7 +211,7 @@ class GetCommentsView(ListAPIView):
 
 
 class SubmitCommentView(CreateAPIView):
-    """ثبت دیدگاه جدید برای مقاله با وضعیت اولیه در حال بررسی"""
+    """ثبت دیدگاه جدید برای مقاله"""
     serializer_class = CommentSubmitSerializer
 
     def perform_create(self, serializer):
@@ -220,7 +230,7 @@ class SubmitCommentView(CreateAPIView):
 
 
 class LikeCommentView(APIView):
-    """افزایش اتمیک تعداد پسندهای دیدگاه (Comment Likes)"""
+    """افزایش اتمیک تعداد پسندهای دیدگاه"""
 
     # noinspection PyMethodMayBeStatic
     def post(self, request, pk, *args, **kwargs):
@@ -242,14 +252,14 @@ class KeywordSearchView(ListAPIView):
     def get_queryset(self):
         queryset = Content.objects.filter(status=Content.StatusChoices.PUBLISHED)
 
-        # ۱. فیلتر بر اساس تگ (اختیاری) - با دقت و پرفورمنس بسیار بالا و بومی
+        # ۱. فیلتر بر اساس تگ
         tag_param = self.request.GET.get('tag', '').strip()
         if tag_param:
             queryset = queryset.filter(
                 Q(tags__slug__iexact=tag_param) | Q(tags__name__iexact=tag_param)
             )
 
-        # ۲. فیلتر متنی بر اساس فیلد q (اختیاری)
+        # ۲. فیلتر متنی بر اساس فیلد q
         query = self.request.GET.get('q', '').strip()
         if query:
             queryset = queryset.filter(
@@ -258,7 +268,7 @@ class KeywordSearchView(ListAPIView):
                 Q(content__icontains=query)
             )
 
-        # ۳. فیلتر بازگشتی دسته‌بندی بر اساس اسلاگ (اختیاری)
+        # ۳. فیلتر بازگشتی دسته‌بندی بر اساس اسلاگ
         category_slug = self.request.GET.get('category', '').strip()
         if category_slug:
             try:
@@ -268,7 +278,7 @@ class KeywordSearchView(ListAPIView):
             except Category.DoesNotExist:
                 queryset = queryset.none()
 
-        # ۴. فیلتر بازه زمانی (اختیاری)
+        # ۴. فیلتر بازه زمانی
         time_range = self.request.GET.get('time_range', '').strip()
         now = timezone.now()
         if time_range:
@@ -281,7 +291,6 @@ class KeywordSearchView(ListAPIView):
             elif time_range == 'year':
                 queryset = queryset.filter(publish_date__gte=now - timedelta(days=365))
         else:
-            # فیلتر تاریخ به صورت داینامیک و بازه‌ای
             start_date = self.request.GET.get('start_date', '').strip()
             end_date = self.request.GET.get('end_date', '').strip()
             if start_date:
@@ -289,28 +298,27 @@ class KeywordSearchView(ListAPIView):
             if end_date:
                 queryset = queryset.filter(publish_date__date__lte=end_date)
 
-        # ۵. مرتب‌سازی پویا بر اساس نوع فیلتر ارسالی
+        # ۵. مرتب‌سازی پویا
         sort_by = self.request.GET.get('sort_by', '').strip()
         if sort_by == 'popular':
             queryset = queryset.order_by('-views_count', '-id')
         elif sort_by == 'likes':
             queryset = queryset.order_by('-likes_count', '-id')
         else:
-            # مرتب‌سازی پیش‌فرض بر اساس آخرین تاریخ انتشار
             queryset = queryset.order_by('-publish_date', '-id')
 
         return queryset.distinct()
 
 
 class ArticleDetailView(RetrieveAPIView):
-    """ای‌پی‌آی جزئیات دقیق خبر با ساختار بهینه برای رندر کش‌شدنی در Astro CDN"""
+    """ای‌پی‌آی جزئیات دقیق خبر"""
     queryset = Content.objects.filter(status=Content.StatusChoices.PUBLISHED)
     serializer_class = ContentDetailSerializer
     lookup_field = 'slug'
 
 
 class ShortCodeResolutionView(APIView):
-    """تبدیل و اعتبارسنجی کدهای کوتاه فرانت‌اند به ساختار غنی مقاله متناظر"""
+    """تبدیل کدهای کوتاه فرانت‌اند"""
 
     # noinspection PyMethodMayBeStatic
     def get(self, request, short_code, *args, **kwargs):
@@ -332,28 +340,22 @@ class ShortCodeResolutionView(APIView):
 
 
 class CategoryArticlesView(APIView):
-    """دریافت مقالات یک دسته و فرزندان بازگشتی آن به همراه خروجی زیردسته‌های سطح اول"""
+    """دریافت مقالات یک دسته و فرزندان بازگشتی آن"""
 
     # noinspection PyMethodMayBeStatic
     def get(self, request, category_slug, *args, **kwargs):
         try:
-            # ۱. دریافت دسته‌بندی جاری
             category = Category.objects.get(slug=category_slug, is_active=True)
-
-            # ۲. دریافت فرزندان مستقیم (بدون نوه‌ها) برای ابزار ناوبری فرانت‌اند
             child_categories = category.children.filter(is_active=True).order_by('order', 'name')
             child_serializer = CategorySerializer(child_categories, many=True, context={'request': request})
 
-            # ۳. دریافت تمام شناسه‌های درخت زیرمجموعه به صورت بازگشتی جهت فیلتر جامع مقالات
             all_sub_ids = get_all_subcategory_ids(category)
 
-            # ۴. فیلتر کل مقالات منتشر شده در این زنجیره
             articles = Content.objects.filter(
                 category__id__in=all_sub_ids,
                 status=Content.StatusChoices.PUBLISHED
             ).distinct().order_by('-publish_date', '-id')
 
-            # ۵. اعمال صفحه‌بندی استاندارد جامع
             paginator = GatewayStandardPagination()
             paginated_queryset = paginator.paginate_queryset(articles, request, view=self)
 
@@ -378,9 +380,8 @@ class CategoryArticlesView(APIView):
 
 
 class CategoryListView(ListAPIView):
-    """دریافت درخت ساختاریافته تمامی دسته‌بندی‌های فعال سیستم با ساختار بازگشتی"""
+    """دریافت درخت تمامی دسته‌بندی‌های فعال سیستم"""
     serializer_class = CategoryTreeSerializer
 
     def get_queryset(self):
-        # بازگرداندن ریشه‌های درخت به همراه پیش‌فرض در بر گرفتن کل ساختار فرزندان
         return Category.objects.filter(is_active=True, parent=None).order_by('order', 'name')

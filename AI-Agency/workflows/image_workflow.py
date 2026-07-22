@@ -11,6 +11,7 @@ import concurrent.futures
 import time
 from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field, SecretStr
+from PIL import Image, ImageDraw
 
 from langgraph.graph import StateGraph, START, END
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -98,6 +99,7 @@ class GeminiImageSelection(BaseModel):
 def compress_image_bytes(img_bytes: bytes, max_dim: int = 800, quality: int = 70) -> Optional[bytes]:
     """فشرده‌ساز سبک برای پکت‌های ورودی به مدل بینایی جمینای"""
     try:
+        from PIL import Image
         img = Image.open(io.BytesIO(img_bytes))
 
         if img.mode == "P":
@@ -134,6 +136,7 @@ def compress_image_bytes(img_bytes: bytes, max_dim: int = 800, quality: int = 70
 def compress_image_smart(img_bytes: bytes, max_dim: int = 1200, quality: int = 85) -> bytes:
     """فشرده‌ساز هوشمند تصاویر برای استاندارد وب"""
     try:
+        from PIL import Image
         original_size_kb = len(img_bytes) / 1024
         img = Image.open(io.BytesIO(img_bytes))
 
@@ -633,7 +636,7 @@ def image_saver_node(state: ImageWorkflowState) -> Dict[str, Any]:
             extracted_alt_text = match.group(1)
             break
 
-    # تعیین متن آلت نهایی: اگر عکس تولید شده است، از Alt Text پویایی که جمینای نوشته استفاده می‌کنیم
+    # تعیین متن آلت نهایی
     if state.supervisor_decision == "find" and not state.fallback_prompt:
         final_alt_text = extracted_alt_text
     else:
@@ -667,7 +670,6 @@ def image_saver_node(state: ImageWorkflowState) -> Dict[str, Any]:
     try:
         with transaction.atomic():
             for article in matching_articles:
-                # واکشی مجدد رکورد برای قفل موقت دیتابیس جهت ممانعت از تداخل همزمان
                 article_locked = Content.objects.select_for_update().get(id=article.id)
                 sugs = list(article_locked.suggestions or [])
                 updated = False
@@ -735,7 +737,7 @@ def image_saver_node(state: ImageWorkflowState) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error linking image to matching posts: {e}", exc_info=True)
 
-    # ۴. اجرای کاملاً ایمن تسک متمرکز انتشار در خارج از بلاک تراکنش (به محض Commit دیتابیس روی دیسک)
+    # ۴. اجرای کاملاً ایمن تسک متمرکز انتشار به محض Commit دیتابیس
     if posts_to_trigger:
         for pid in posts_to_trigger:
             def trigger_publisher(post_id=pid):
@@ -747,7 +749,6 @@ def image_saver_node(state: ImageWorkflowState) -> Dict[str, Any]:
                 except Exception as celery_e:
                     logger.error(f"Error triggering publisher task: {celery_e}")
 
-            # استفاده از قلاب بومی جنگو برای رهاسازی تسک پس از اتمام فیزیکی کوئری
             transaction.on_commit(trigger_publisher)
 
     add_log_event(

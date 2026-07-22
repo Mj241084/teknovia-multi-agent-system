@@ -16,9 +16,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
   
   <main class="w-full max-w-full lg:max-w-7xl overflow-x-hidden lg:overflow-x-visible mx-auto px-4 sm:px-6 py-6 flex-1 space-y-12">
     
-    <!-- ۴. هیرو سکشن وب‌سایت با اسلایدر کلاینتی ۳ ستونه و پرشدن تعاملی فضای خالی کناری -->
+    <!-- ۴. هیرو سکشن وب‌سایت با اسلایدر کلاینتی ۳ ستونه (پاس دادن داده‌های تفکیک شده اسلایدر هیرو) -->
     <section class="flex text-right dir-rtl w-full">
-      <HeroSliderSection client:load articles={data.latest_news} />
+      <HeroSliderSection client:load articles={data.hero_news && data.hero_news.length > 0 ? data.hero_news : data.latest_news} />
     </section>
 
     <!-- ۵. نوار آمار پالس هوش مصنوعی -->
@@ -34,7 +34,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
       </div>
     </section>
 
-    <!-- ۶. چیدمان دوستونی خبرها -->
+    <!-- ۶. چیدمان دوستونی خبرها (رندر مقالات غیرتکراری آخرین اخبار) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div class="lg:col-span-2 space-y-6">
         <div class="flex items-center justify-between border-b border-border/40 pb-2">
@@ -65,7 +65,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
                 </span>
                 <div>
                   <h4 class="text-xs font-bold line-clamp-2 hover:text-emerald-400 transition-colors">
-                    <a href={`/news/${item.slug}`}>{item.title}</a>
+                    <a href={`/post/${item.slug}`}>{item.title}</a>
                   </h4>
                   <span class="text-[10px] text-muted-foreground">{formatViewsCount(item.views_count)} بازدید</span>
                 </div>
@@ -74,7 +74,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
           </div>
         </div>
 
-        <!-- برچسب‌های داغ با هدایت هوشمند به پارامتر تخصصی tag -->
+        <!-- برچسب‌های داغ -->
         <div class="border border-border/60 bg-card/30 p-5 rounded-2xl space-y-4">
           <div class="flex items-center gap-2 border-b border-border/40 pb-2">
             <span class="text-emerald-500">#</span>
@@ -91,7 +91,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
       </aside>
     </div>
 
-    <!-- ۷. بخش‌های داینامیک دسته‌بندی‌های محبوب و مقالات بر اساس تصویر ارسالی -->
+    <!-- ۷. بخش‌های داینامیک دسته‌بندی‌های محبوب -->
     {data.popular_categories_articles.map((popCat: any) => (
       <section class="py-8 border-t border-border/40 text-right dir-rtl">
         <div class="flex items-center justify-between border-b border-border/50 pb-3 mb-6">
@@ -102,7 +102,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
           <a href={`/category/${popCat.category_slug}`} class="text-xs text-emerald-400 hover:underline">آرشیو کامل ←</a>
         </div>
 
-        {/* دسکتاپ چیدمان RTL هوشمند مجهز به تفکیک بومی تگ ویدیو */}
         <div class="hidden md:grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 flex flex-col gap-4">
             {popCat.articles.slice(1, 3).map((item: any) => (
@@ -131,7 +130,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
                 <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent"></div>
                 <div class="absolute bottom-0 right-0 left-0 p-4 space-y-2 z-20">
                   <h3 class="text-sm font-bold text-white line-clamp-2 hover:text-emerald-400 transition-colors">
-                    <a href={`/news/${popCat.articles[0].slug}`}>{popCat.articles[0].title}</a>
+                    <a href={`/post/${popCat.articles[0].slug}`}>{popCat.articles[0].title}</a>
                   </h3>
                   <div class="flex justify-between items-center text-[10px] text-white/70 font-sans">
                     <span>{toPersianDigits(popCat.articles[0].reading_time)} دقیقه مطالعه</span>
@@ -142,7 +141,6 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=0, s-maxage=300');
           </div>
         </div>
 
-        {/* موبایل اسلایدر نیتیو بومی بدون JS */}
         <div class="md:hidden flex overflow-x-auto snap-x snap-mandatory scrollbar-none gap-4">
           {popCat.articles.map((item: any) => (
             <div class="w-72 shrink-0 snap-center">

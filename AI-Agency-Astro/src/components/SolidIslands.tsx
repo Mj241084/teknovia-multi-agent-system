@@ -15,7 +15,7 @@ export function toPersian(num: number | string): string {
   return num.toString().replace(/[0-9]/g, (w) => pAr[parseInt(w, 10)]);
 }
 
-// ۲. مبدل زمان نسبی فارسی سراسری جهت استفاده مشترک در متادیتا و بخش نظرات
+// ۲. مبدل زمان نسبی فارسی سراسری
 export function getRelativePersianTimeJS(dateStr: string): string {
   if (!dateStr) return 'هم‌اکنون';
   const date = new Date(dateStr);
@@ -65,7 +65,7 @@ export function ThemeToggle() {
   );
 }
 
-// ۴. تیکر اخبار فوری چسبان با اسکرول افقی روان دستی (غیر خودکار)
+// ۴. تیکر اخبار فوری چسبان
 export function LiveTicker(props: { news: any[] }) {
   return (
     <div class="flex items-center border-b border-border/50 bg-background h-10 overflow-hidden relative dir-rtl">
@@ -135,7 +135,7 @@ export function SearchOverlay() {
   );
 }
 
-// ۷. کامپوننت یکپارچه هیرو اسلایدر
+// ۷. کامپوننت یکپارچه هیرو اسلایدر با رندر کاملاً پویا دسته‌بندی‌ها و ویدیو
 export function HeroSliderSection(props: { articles: any[] }) {
   const [active, setActive] = createSignal(0);
   const totalSlides = () => Math.min(props.articles.length, 3);
@@ -162,26 +162,42 @@ export function HeroSliderSection(props: { articles: any[] }) {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 text-right dir-rtl w-full">
       <div class="lg:col-span-2 relative h-96 w-full rounded-2xl overflow-hidden group shadow-xl">
         <For each={props.articles.slice(0, 3)}>
-          {(item, i) => (
-            <div class={`absolute inset-0 transition-opacity duration-750 ${active() === i() ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
-              <a href={`/post/${encodeURI(item.slug)}`} class="block w-full h-full relative">
-                <img 
-                  src={item.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80'} 
-                  alt={item.title} 
-                  class="w-full h-full object-cover" 
-                  loading={i() === 0 ? "eager" : "lazy"} 
-                  fetchpriority={i() === 0 ? "high" : "low"} 
-                  decoding="async"
-                />
-                <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent"></div>
-                <div class="absolute bottom-0 right-0 left-0 p-6 space-y-3 z-20">
-                  <span class="bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold w-fit">هوش مصنوعی</span>
-                  <h2 class="text-xl sm:text-2xl font-black text-white hover:text-emerald-400 transition-colors">{item.title}</h2>
-                  <p class="text-xs text-white/80 line-clamp-2">{item.summary}</p>
-                </div>
-              </a>
-            </div>
-          )}
+          {(item, i) => {
+            const category = item.categories?.[0] || { id: 1, name: 'هوش مصنوعی', slug: 'ai' };
+            return (
+              <div class={`absolute inset-0 transition-opacity duration-750 ${active() === i() ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
+                <a href={`/post/${encodeURI(item.slug)}`} class="block w-full h-full relative">
+                  <Show when={item.featured_media?.media_type === 'video'} fallback={
+                    <img 
+                      src={item.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80'} 
+                      alt={item.title} 
+                      class="w-full h-full object-cover" 
+                      loading={i() === 0 ? "eager" : "lazy"} 
+                      fetchpriority={i() === 0 ? "high" : "low"} 
+                      decoding="async"
+                    />
+                  }>
+                    <video 
+                      src={item.featured_media.media_url} 
+                      class="w-full h-full object-cover" 
+                      autoplay 
+                      loop 
+                      muted 
+                      playsinline
+                    />
+                  </Show>
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent"></div>
+                  <div class="absolute bottom-0 right-0 left-0 p-6 space-y-3 z-20">
+                    <span class="bg-emerald-500 text-white text-[10px] px-2.5 py-0.5 rounded-full font-bold w-fit inline-block">
+                      {category.name}
+                    </span>
+                    <h2 class="text-xl sm:text-2xl font-black text-white hover:text-emerald-400 transition-colors">{item.title}</h2>
+                    <p class="text-xs text-white/80 line-clamp-2">{item.summary}</p>
+                  </div>
+                </a>
+              </div>
+            );
+          }}
         </For>
 
         <div class="absolute inset-y-0 left-4 flex items-center z-30 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -200,21 +216,35 @@ export function HeroSliderSection(props: { articles: any[] }) {
         <For each={sideIndices()}>
           {(idx) => {
             const item = props.articles[idx];
+            const category = item.categories?.[0] || { id: 1, name: 'فناوری', slug: 'tech' };
             return (
               <a 
                 href={`/post/${encodeURI(item.slug)}`}
                 class="relative h-[180px] rounded-2xl overflow-hidden group cursor-pointer border border-transparent hover:border-emerald-500/50 hover:shadow-lg transition-all duration-300 block"
               >
-                <img 
-                  src={item.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
-                  alt={item.title} 
-                  class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                  loading="lazy" 
-                  decoding="async"
-                />
+                <Show when={item.featured_media?.media_type === 'video'} fallback={
+                  <img 
+                    src={item.featured_media?.media_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
+                    alt={item.title} 
+                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                    loading="lazy" 
+                    decoding="async"
+                  />
+                }>
+                  <video 
+                    src={item.featured_media.media_url} 
+                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                    autoplay 
+                    loop 
+                    muted 
+                    playsinline
+                  />
+                </Show>
                 <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-transparent"></div>
                 <div class="absolute bottom-0 right-0 left-0 p-4 space-y-1 z-20">
-                  <span class="bg-cyan-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold w-fit">فناوری</span>
+                  <span class="bg-cyan-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold w-fit inline-block">
+                    {category.name}
+                  </span>
                   <h3 class="text-sm font-bold text-white line-clamp-2 group-hover:text-emerald-400 transition-colors">
                     {item.title}
                   </h3>
@@ -228,7 +258,7 @@ export function HeroSliderSection(props: { articles: any[] }) {
   );
 }
 
-// ۸. منوی همبرگری موبایل مجهز به نام دسترسی‌پذیری آریا جهت تایید در تست گوگل
+// ۸. منوی همبرگری موبایل
 export function MobileMenu(props: { children: any }) {
   const [isOpen, setIsOpen] = createSignal(false);
   return (
@@ -481,7 +511,7 @@ export function AdvancedSearchPanel(props: { initialQuery?: string; initialCateg
   );
 }
 
-// ۱۱. ماژول تعاملات با مهار لیمیت به همراه ثبت خودکار بازدید کلاینت در بدو ورود
+// ۱۱. ماژول تعاملات با مهار لیمیت
 export function ArticleHeaderInteractions(props: { 
   articleId: number; 
   likesCount: number; 
