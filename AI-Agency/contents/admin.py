@@ -51,7 +51,7 @@ class CategoryAdmin(admin.ModelAdmin):
         'created_at',
     )
     list_display_links = ('id', 'name')
-    list_editable = ('is_active', 'indexable', 'order')
+    list_editable = ('is_active', 'indexable','views_count', 'order')
     list_per_page = 25
     ordering = ('order', 'name')
     date_hierarchy = 'created_at'
