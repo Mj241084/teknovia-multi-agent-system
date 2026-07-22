@@ -300,7 +300,7 @@ def telegram_publisher_node(state: PublisherWorkflowState) -> Dict[str, Any]:
 
         raw_markdown_content = post.content or ""
         placeholder = "<!-- MAIN_ARTICLE_URL -->"
-        channel_username = getattr(settings, 'TELEGRAM_CHANNEL_USERNAME', '@teknovia_ir')
+        channel_username = settings.TELEGRAM_CHANNEL_USERNAME if not None else '@teknovia_ir'
         article = post.main_article
 
         content_processed = raw_markdown_content
