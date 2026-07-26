@@ -186,7 +186,7 @@ def purge_post_cache(slug: str):
 
 ```bash
 # کلون پروژه
-git clone https://github.com/your-username/teknovia.git
+git clone https://github.com/Mj241084/teknovia-multi-agent-system
 cd /var/www/teknovia
 
 # بیلد و اجرای کانتینرها
